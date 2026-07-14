@@ -322,6 +322,8 @@
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const $ = id => document.getElementById(id);
+
 // ---------- i18n ----------
 let LANG = (navigator.language||'').toLowerCase().startsWith('tr') ? 'tr' : 'en';
 const STRINGS = {
@@ -964,7 +966,6 @@ async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, v
 }
 
 // ---------- UI wiring ----------
-const $ = id => document.getElementById(id);
 $('date').value = new Date().toISOString().slice(0,10);
 
 document.querySelectorAll('#vibe-chips .chip').forEach(chip=>{
