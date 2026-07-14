@@ -173,6 +173,25 @@
 
   @media (max-width:480px){ .moods{grid-template-columns:1fr;} }
 
+  .divider-row{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--muted);font-size:0.76rem;text-transform:uppercase;letter-spacing:0.06em;}
+  .divider-row::before,.divider-row::after{content:'';flex:1;height:1px;background:var(--border);}
+  .google-btn{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
+    background:#fff; color:#3c4043; border:1px solid #dadce0; border-radius:10px;
+    padding:11px; font-size:0.92rem; font-weight:500; cursor:pointer;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; transition:.15s;
+  }
+  .google-btn:hover{box-shadow:0 1px 8px rgba(0,0,0,0.18); border-color:#c6c6c6;}
+  .google-btn svg{width:18px;height:18px;flex-shrink:0;}
+  .account-badge{display:flex;align-items:center;gap:14px;}
+  .avatar-circle{
+    width:46px;height:46px;border-radius:50%;background:var(--accent);color:var(--accent-contrast);
+    display:flex;align-items:center;justify-content:center;font-family:var(--font-display);
+    font-size:1.25rem;font-weight:700;flex-shrink:0;
+  }
+  .account-name{font-weight:700;font-size:0.98rem;word-break:break-all;}
+  .account-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
+
   /* ---------- mobile ---------- */
   .map-tap-hint{
     position:absolute; inset:0; background:rgba(0,0,0,0.35); color:#fff; display:flex;
@@ -323,7 +342,7 @@
     <button id="auth-close" class="iconbtn">✕</button>
   </div>
   <div id="auth-signed-out">
-    <p class="mood-hint" data-i18n="signin_hint">Sign in to keep your saved plans across devices.</p>
+    <p class="mood-hint" id="auth-hint" data-i18n="signin_hint">Sign in to keep your saved plans across devices.</p>
     <div class="row"><div>
       <label data-i18n="email_label">Email</label>
       <input type="email" id="auth-email" autocomplete="email">
@@ -333,13 +352,28 @@
       <input type="password" id="auth-password" autocomplete="current-password">
     </div></div>
     <div id="auth-error"></div>
-    <button class="submit" id="auth-signin-btn" data-i18n="signin_action">Sign in</button>
-    <button class="again" id="auth-signup-btn" style="width:100%;margin-top:8px;" data-i18n="signup_action">Create account</button>
-    <button class="again" id="auth-google-btn" style="width:100%;margin-top:8px;" data-i18n="google_action">Sign in with Google</button>
+    <button class="submit" id="auth-primary-btn" data-i18n="signin_action">Sign in</button>
+    <button type="button" class="customize-toggle" id="auth-mode-toggle" style="display:block;width:100%;text-align:center;margin-top:12px;" data-i18n="signup_prompt">Don't have an account? Create one</button>
+    <div class="divider-row"><span data-i18n="or_divider">or</span></div>
+    <button type="button" class="google-btn" id="auth-google-btn">
+      <svg viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+      </svg>
+      <span data-i18n="google_action">Sign in with Google</span>
+    </button>
   </div>
   <div id="auth-signed-in" style="display:none;">
-    <p style="margin-bottom:16px;" id="auth-user-email"></p>
-    <button class="again" id="auth-signout-btn" style="width:100%;" data-i18n="signout_action">Sign out</button>
+    <div class="account-badge">
+      <div class="avatar-circle" id="auth-avatar">?</div>
+      <div>
+        <div class="account-name" id="auth-user-email"></div>
+        <div class="account-sub" data-i18n="signed_in_label">Account</div>
+      </div>
+    </div>
+    <button class="again" id="auth-signout-btn" style="width:100%;margin-top:22px;" data-i18n="signout_action">Sign out</button>
   </div>
 </div>
 
@@ -412,6 +446,8 @@ const STRINGS = {
     email_label:"Email", password_label:"Password",
     signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
     signed_in_label:"Account", signout_action:"Sign out",
+    or_divider:"or", signup_prompt:"Don't have an account? Create one",
+    signin_prompt:"Already have an account? Sign in", signup_hint:"Create an account to keep your saved plans across devices.",
     autherr_missing_fields:"Enter both an email and a password.",
     autherr_invalid_email:"That email address doesn't look right — check for typos.",
     autherr_email_in_use:"An account already exists with that email — try signing in instead.",
@@ -483,6 +519,8 @@ const STRINGS = {
     email_label:"E-posta", password_label:"Şifre",
     signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
     signed_in_label:"Hesap", signout_action:"Çıkış yap",
+    or_divider:"veya", signup_prompt:"Hesabın yok mu? Oluştur",
+    signin_prompt:"Zaten hesabın var mı? Giriş yap", signup_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye hesap oluştur.",
     autherr_missing_fields:"E-posta ve şifre alanlarını doldur.",
     autherr_invalid_email:"Bu e-posta adresi doğru görünmüyor — yazım hatası olabilir.",
     autherr_email_in_use:"Bu e-posta ile zaten bir hesap var — giriş yapmayı dene.",
@@ -514,6 +552,7 @@ function applyI18n(){
   });
   $('lang-toggle').textContent = STRINGS[LANG].lang_toggle;
   $('customize-toggle').textContent = advancedOpen ? t('customize_hide') : t('customize_show');
+  updateAuthModeUI();
   if(manualContext){ renderManualBuilder(); }
   else if(moodOptions && !currentPlan){ renderMoodOptions(); }
   else if(currentPlan){ render(); }
@@ -1451,12 +1490,19 @@ function onAuthStateChangedUI(user){
     $('auth-signed-out').style.display = 'none';
     $('auth-signed-in').style.display = 'block';
     $('auth-user-email').textContent = user.email || '';
+    $('auth-avatar').textContent = (user.email || '?').charAt(0).toUpperCase();
     syncCloudHistory();
   } else {
     $('auth-toggle').textContent = t('signin_btn');
     $('auth-signed-out').style.display = 'block';
     $('auth-signed-in').style.display = 'none';
   }
+}
+let authMode = 'signin';
+function updateAuthModeUI(){
+  $('auth-primary-btn').textContent = authMode==='signin' ? t('signin_action') : t('signup_action');
+  $('auth-mode-toggle').textContent = authMode==='signin' ? t('signup_prompt') : t('signin_prompt');
+  $('auth-hint').textContent = authMode==='signin' ? t('signin_hint') : t('signup_hint');
 }
 const AUTH_ERROR_KEYS = {
   'auth/invalid-email': 'autherr_invalid_email',
@@ -1500,22 +1546,23 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
     fbDb = firebase.firestore();
     fbAuth.onAuthStateChanged(onAuthStateChangedUI);
 
-    $('auth-toggle').addEventListener('click', ()=>{ clearAuthError(); openAuthPanel(); });
+    $('auth-toggle').addEventListener('click', ()=>{ clearAuthError(); authMode='signin'; updateAuthModeUI(); openAuthPanel(); });
     $('auth-close').addEventListener('click', closeAuthPanel);
     $('auth-overlay').addEventListener('click', closeAuthPanel);
-    $('auth-signin-btn').addEventListener('click', async ()=>{
+    $('auth-mode-toggle').addEventListener('click', ()=>{
       clearAuthError();
-      const email = $('auth-email').value.trim(), pass = $('auth-password').value;
-      if(!email || !pass){ showAuthError(t('autherr_missing_fields')); return; }
-      try{ await fbAuth.signInWithEmailAndPassword(email, pass); closeAuthPanel(); }
-      catch(e){ showAuthError(translateAuthError(e)); }
+      authMode = authMode==='signin' ? 'signup' : 'signin';
+      updateAuthModeUI();
     });
-    $('auth-signup-btn').addEventListener('click', async ()=>{
+    $('auth-primary-btn').addEventListener('click', async ()=>{
       clearAuthError();
       const email = $('auth-email').value.trim(), pass = $('auth-password').value;
       if(!email || !pass){ showAuthError(t('autherr_missing_fields')); return; }
-      try{ await fbAuth.createUserWithEmailAndPassword(email, pass); closeAuthPanel(); }
-      catch(e){ showAuthError(translateAuthError(e)); }
+      try{
+        if(authMode==='signin') await fbAuth.signInWithEmailAndPassword(email, pass);
+        else await fbAuth.createUserWithEmailAndPassword(email, pass);
+        closeAuthPanel();
+      }catch(e){ showAuthError(translateAuthError(e)); }
     });
     $('auth-google-btn').addEventListener('click', async ()=>{
       clearAuthError();
