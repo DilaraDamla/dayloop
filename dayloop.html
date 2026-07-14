@@ -198,6 +198,16 @@
   .account-name{font-weight:700;font-size:0.98rem;word-break:break-all;}
   .account-sub{color:var(--muted);font-size:0.8rem;margin-top:2px;}
 
+  .fab{
+    position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom)); width:54px; height:54px;
+    border-radius:50%; background:var(--accent); color:var(--accent-contrast); border:none; font-size:1.4rem;
+    cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,0.4); z-index:90; display:flex; align-items:center; justify-content:center;
+    transition:transform .15s;
+  }
+  .fab:hover{transform:scale(1.06);}
+  .fab:active{transform:scale(0.95);}
+  @media (prefers-reduced-motion: reduce){ .fab:hover,.fab:active{transform:none;} }
+
   /* ---------- mobile ---------- */
   .map-tap-hint{
     position:absolute; inset:0; background:rgba(0,0,0,0.35); color:#fff; display:flex;
@@ -251,16 +261,6 @@
     </div>
 
     <div class="row">
-      <div style="flex:1 1 100%;">
-        <label data-i18n="when_label">When</label>
-        <div class="chips" id="time-chips">
-          <div class="chip active" data-val="now2" data-i18n="time_now2">Right now, ~2 hours</div>
-          <div class="chip" data-val="nowday" data-i18n="time_nowday">Right now, most of the day</div>
-          <div class="chip" data-val="custom" data-i18n="time_custom">Choose a specific time</div>
-        </div>
-      </div>
-    </div>
-    <div class="row" id="custom-time-row" style="display:none;">
       <div>
         <label data-i18n="date_label">Date</label>
         <input type="date" id="date">
@@ -276,41 +276,32 @@
     </div>
 
     <div class="row">
-      <div style="flex:1 1 100%;">
-        <label data-i18n="mood_label">Mood</label>
-        <p class="mood-hint" data-i18n="mood_hint">We'll build a plan for every mood below — pick the one that fits.</p>
-        <button type="button" class="customize-toggle" id="customize-toggle">Customize vibe, group, budget →</button>
-        <div class="advanced" id="advanced-controls" style="display:none;">
-          <div class="row">
-            <div>
-              <label data-i18n="vibe_label">Vibe</label>
-              <div class="chips" id="vibe-chips">
-                <div class="chip" data-val="romantic" data-i18n="vibe_romantic">Romantic</div>
-                <div class="chip" data-val="chill" data-i18n="vibe_chill">Chill</div>
-                <div class="chip" data-val="adventurous" data-i18n="vibe_adventurous">Adventurous</div>
-                <div class="chip" data-val="budget" data-i18n="vibe_budget">Budget</div>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div>
-              <label data-i18n="group_label">Group</label>
-              <select id="group">
-                <option value="couple" data-i18n="group_couple">Couple / date</option>
-                <option value="solo" data-i18n="group_solo">Solo</option>
-                <option value="friends" data-i18n="group_friends">Friends</option>
-              </select>
-            </div>
-            <div>
-              <label data-i18n="budget_label">Budget level</label>
-              <select id="budget">
-                <option value="1" data-i18n="budget_1">$ — keep it cheap</option>
-                <option value="2" data-i18n="budget_2">$$ — normal</option>
-                <option value="3" data-i18n="budget_3">$$$ — treat yourself</option>
-              </select>
-            </div>
-          </div>
+      <div>
+        <label data-i18n="vibe_label">Vibe</label>
+        <div class="chips" id="vibe-chips">
+          <div class="chip active" data-val="romantic" data-i18n="vibe_romantic">Romantic</div>
+          <div class="chip" data-val="chill" data-i18n="vibe_chill">Chill</div>
+          <div class="chip" data-val="adventurous" data-i18n="vibe_adventurous">Adventurous</div>
+          <div class="chip" data-val="budget" data-i18n="vibe_budget">Budget</div>
         </div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label data-i18n="group_label">Group</label>
+        <select id="group">
+          <option value="couple" data-i18n="group_couple">Couple / date</option>
+          <option value="solo" data-i18n="group_solo">Solo</option>
+          <option value="friends" data-i18n="group_friends">Friends</option>
+        </select>
+      </div>
+      <div>
+        <label data-i18n="budget_label">Budget level</label>
+        <select id="budget">
+          <option value="1" data-i18n="budget_1">$ — keep it cheap</option>
+          <option value="2" selected data-i18n="budget_2">$$ — normal</option>
+          <option value="3" data-i18n="budget_3">$$$ — treat yourself</option>
+        </select>
       </div>
     </div>
 
@@ -387,6 +378,16 @@
   </div>
 </div>
 
+<button id="popular-fab" class="fab" type="button" title="Popular nearby">✨</button>
+<div id="popular-overlay" class="overlay"></div>
+<div id="popular-panel" class="panel">
+  <div class="panel-head">
+    <h2 data-i18n="popular_title">Popular nearby</h2>
+    <button id="popular-close" class="iconbtn">✕</button>
+  </div>
+  <div id="popular-body"></div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
@@ -450,7 +451,11 @@ const STRINGS = {
     my_day_label:"My day", my_day_empty:"Nothing added yet — browse places below and tap + to add them.",
     manual_build_btn:"Build this plan", browse_label:"Places near you", filter_all:"All",
     add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
+    filter_events:"Events", manual_events_note:"We can't list live listings without a paid ticketing API — this opens a search for tickets and free events near you.",
     events_link:"🎟️ Get tickets & see events →",
+    popular_title:"Popular nearby", popular_empty:"Search a location first — popular places will show up here once you do.",
+    popular_places_note:"These are the most detailed listings in the map data near your last search — not a verified popularity ranking, since that data isn't freely available.",
+    open_maps_short:"View on map",
     map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
     name_label:"Name", name_placeholder:"e.g. Dilara",
@@ -524,7 +529,11 @@ const STRINGS = {
     my_day_label:"Günüm", my_day_empty:"Henüz bir şey eklemedin — aşağıdan yer seçip + ile ekle.",
     manual_build_btn:"Bu planı oluştur", browse_label:"Yakındaki yerler", filter_all:"Tümü",
     add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
+    filter_events:"Etkinlikler", manual_events_note:"Ücretli bir bilet API'si olmadan canlı etkinlik listesi gösteremiyoruz — bu, yakınındaki bilet ve ücretsiz etkinlikler için arama açar.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
+    popular_title:"Yakında popüler", popular_empty:"Önce bir konum ara — popüler yerler burada görünecek.",
+    popular_places_note:"Bunlar son aradığın konuma yakın, harita verisinde en detaylı bilgiye sahip yerler — gerçek bir popülerlik verisi ücretsiz kaynaklarda yok, bu yüzden kesin bir sıralama değil.",
+    open_maps_short:"Haritada gör",
     map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
     name_label:"İsim", name_placeholder:"örn. Dilara",
@@ -546,7 +555,6 @@ const STRINGS = {
     lang_toggle:"EN",
   },
 };
-let advancedOpen = false;
 function t(key, vars){
   let str = STRINGS[LANG][key] ?? key;
   if(vars) Object.entries(vars).forEach(([k,v])=>{ str = str.replace(`{${k}}`, v); });
@@ -563,10 +571,8 @@ function applyI18n(){
     if(STRINGS[LANG][key]!=null) el.placeholder = STRINGS[LANG][key];
   });
   $('lang-toggle').textContent = STRINGS[LANG].lang_toggle;
-  $('customize-toggle').textContent = advancedOpen ? t('customize_hide') : t('customize_show');
   updateAuthModeUI();
   if(manualContext){ renderManualBuilder(); }
-  else if(moodOptions && !currentPlan){ renderMoodOptions(); }
   else if(currentPlan){ render(); }
 }
 function escapeHtml(str){
@@ -579,7 +585,7 @@ const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
 const WALK_SPEED_KMH = 4.5;
 let currentPlan = null;
-let moodOptions = null;
+let lastPOIContext = null;
 
 const CATEGORY_TAGS = {
   cafe:       [['amenity','cafe']],
@@ -605,7 +611,6 @@ const CATEGORY_EMOJI = { cafe:'☕', restaurant:'🍽️', bar:'🍸', nightclub
 const CATEGORY_DURATION_MIN = { cafe:45, restaurant:90, bar:75, nightclub:120, cinema:120, museum:90,
   gallery:60, park:60, viewpoint:30, artwork:20, bakery:20, ice_cream:20, shopping:60 };
 const VIBE_EMOJI = { romantic:'💕', chill:'😌', adventurous:'🧭', budget:'💸' };
-const MOOD_GLYPH = { romantic:'✦', solo:'◐', friends:'↗', chill:'〜' };
 
 const VIBE_MAP = {
   romantic:    { coffee:['cafe','bakery'], activity:['viewpoint','museum','gallery','park'], food:['restaurant'], evening:['bar'] },
@@ -615,13 +620,6 @@ const VIBE_MAP = {
 };
 
 const SLOT_DURATION_MIN = { coffee:45, activity:90, activity2:75, food:90, evening:105 };
-
-const MOOD_PRESETS = {
-  romantic: { vibe:'romantic', group:'couple', budget:'3' },
-  solo:     { vibe:'chill', group:'solo', budget:'1' },
-  friends:  { vibe:'adventurous', group:'friends', budget:'2' },
-  chill:    { vibe:'chill', group:'couple', budget:'2' },
-};
 
 function slotsForDuration(hours){
   if (hours <= 2.5) return ['activity','food'];
@@ -664,6 +662,7 @@ function mapLink(lat,lon){
 // own site search — their URL query formats aren't something to assume without checking,
 // and a broken guessed link is worse than a search results page.
 function buildEventsSearchURL(center){
+  if(!center) return `https://www.google.com/search?q=${encodeURIComponent('events near me tickets')}`;
   const cityQuery = center.label ? center.label.split(',')[0] : `${center.lat.toFixed(2)},${center.lon.toFixed(2)}`;
   const isTurkey = /turkey/i.test(center.label || '');
   const q = isTurkey ? `Biletix ${cityQuery} etkinlikler bilet` : `events near ${cityQuery} tickets Ticketmaster Eventbrite`;
@@ -1046,6 +1045,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
 
   setStatus(t('status_places'));
   const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+  lastPOIContext = { center, pois };
   return { center, weather, pois };
 }
 
@@ -1096,37 +1096,6 @@ function showToast(msg){
   showToast._t = setTimeout(()=>el.classList.remove('show'), 2200);
 }
 
-// ---------- time presets ----------
-function setTimeChipMode(key){
-  document.querySelectorAll('#time-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===key));
-  $('custom-time-row').style.display = key==='custom' ? 'flex' : 'none';
-}
-function applyTimePreset(key){
-  setTimeChipMode(key);
-  if(key==='custom') return;
-  const now = new Date();
-  $('date').value = now.toISOString().slice(0,10);
-  const startMin = now.getHours()*60 + now.getMinutes();
-  $('start-time').value = minutesToHHMM(startMin);
-  let endMin = key==='now2' ? startMin + 120 : Math.max(startMin + 180, 1320);
-  endMin = Math.min(endMin, 1439);
-  $('end-time').value = minutesToHHMM(endMin);
-}
-document.querySelectorAll('#time-chips .chip').forEach(chip=>{
-  chip.addEventListener('click', ()=> applyTimePreset(chip.dataset.val));
-});
-
-function selectMood(key){
-  const preset = MOOD_PRESETS[key];
-  if(!preset) return;
-  document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===preset.vibe));
-  $('group').value = preset.group;
-  $('budget').value = preset.budget;
-}
-
-function openAdvanced(){ $('advanced-controls').style.display='block'; advancedOpen=true; $('customize-toggle').textContent = t('customize_hide'); }
-function closeAdvanced(){ $('advanced-controls').style.display='none'; advancedOpen=false; $('customize-toggle').textContent = t('customize_show'); }
-$('customize-toggle').addEventListener('click', ()=> advancedOpen ? closeAdvanced() : openAdvanced());
 
 $('go').addEventListener('click', planDay);
 $('manual-btn').addEventListener('click', startManualMode);
@@ -1146,7 +1115,7 @@ function validateTimeInputs({ cityInput, startMin, endMin }){
 
 async function planDay(){
   clearError(); $('result').style.display='none'; $('result').innerHTML='';
-  moodOptions = null; currentPlan = null; manualContext = null;
+  currentPlan = null; manualContext = null;
   const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
   if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
 
@@ -1158,28 +1127,16 @@ async function planDay(){
       setStatus(''); return;
     }
 
+    const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
+    const groupVal = $('group').value;
+    const budgetVal = parseInt($('budget').value,10);
     setStatus(t('status_building'));
-    if(advancedOpen){
-      const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
-      const groupVal = $('group').value;
-      const budgetVal = parseInt($('budget').value,10);
-      setStatus(t('status_routing'));
-      const plan = await buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, groupVal, budgetVal);
-      if(!plan){ showError(t('error_no_matches')); setStatus(''); return; }
-      currentPlan = plan;
-      render();
-      saveToHistory(currentPlan);
-    } else {
-      const keys = Object.keys(MOOD_PRESETS);
-      const results = await Promise.all(keys.map(key=>{
-        const preset = MOOD_PRESETS[key];
-        return buildFullPlan(pois, center, weather, dateStr, startMin, endMin, preset.vibe, preset.group, parseInt(preset.budget,10));
-      }));
-      moodOptions = {};
-      keys.forEach((key,i)=>{ if(results[i]) moodOptions[key] = results[i]; });
-      if(!Object.keys(moodOptions).length){ showError(t('error_no_matches')); setStatus(''); return; }
-      renderMoodOptions();
-    }
+    setStatus(t('status_routing'));
+    const plan = await buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, groupVal, budgetVal);
+    if(!plan){ showError(t('error_no_matches')); setStatus(''); return; }
+    currentPlan = plan;
+    render();
+    saveToHistory(currentPlan);
     setStatus('');
   } catch(e){
     console.error(e);
@@ -1190,38 +1147,11 @@ async function planDay(){
   }
 }
 
-function renderMoodOptions(){
-  let html = `<div class="note">${escapeHtml(t('compare_title'))}</div>`;
-  html += `<div class="moods">`;
-  Object.entries(moodOptions).forEach(([key, plan])=>{
-    const first = plan.stops[0];
-    const firstName = first ? (placeName(first.poi.tags) || t('cat_'+first.poi.category)) : '';
-    html += `<div class="mood">
-      <span class="glyph">${MOOD_GLYPH[key]||'✦'}</span>
-      <span class="name">${escapeHtml(t('mood_'+key+'_name'))}</span>
-      <span class="desc">${escapeHtml(t('mood_'+key+'_desc'))}</span>
-      <span class="meta">${plan.stops.length} ${escapeHtml(t('summary_stops'))} · ${plan.totalWalkKm.toFixed(1)} km${firstName ? ' · '+escapeHtml(firstName) : ''}</span>
-      <button type="button" class="pick-btn" onclick="chooseMoodOption('${key}')">${escapeHtml(t('view_full_plan'))}</button>
-    </div>`;
-  });
-  html += `</div>`;
-  $('result').innerHTML = html;
-  $('result').style.display = 'block';
-}
-function chooseMoodOption(key){
-  const plan = moodOptions[key];
-  if(!plan) return;
-  selectMood(key);
-  currentPlan = plan;
-  render();
-  saveToHistory(currentPlan);
-}
-
 function planAgain(){
   $('result').style.display='none';
   $('result').innerHTML='';
   clearError();
-  moodOptions = null; currentPlan = null; manualContext = null;
+  currentPlan = null; manualContext = null;
   document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
@@ -1232,7 +1162,7 @@ let manualFilter = 'all';
 
 async function startManualMode(){
   clearError(); $('result').style.display='none'; $('result').innerHTML='';
-  moodOptions = null; currentPlan = null;
+  currentPlan = null;
   const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
   if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
 
@@ -1281,27 +1211,34 @@ function renderManualBuilder(){
   html += `<div class="chips" id="manual-filter-chips">
     <div class="chip ${manualFilter==='all'?'active':''}" data-cat="all">${escapeHtml(t('filter_all'))}</div>
     ${Object.keys(CATEGORY_TAGS).map(c=>`<div class="chip ${manualFilter===c?'active':''}" data-cat="${c}">${escapeHtml(t('cat_'+c))}</div>`).join('')}
+    <div class="chip ${manualFilter==='events'?'active':''}" data-cat="events">🎟️ ${escapeHtml(t('filter_events'))}</div>
   </div>`;
-  const filtered = pois.filter(p=> manualFilter==='all' || p.category===manualFilter);
-  html += `<div class="browse-list">`;
-  if(!filtered.length){
-    html += `<p class="mood-hint">${escapeHtml(t('browse_empty'))}</p>`;
+  if(manualFilter==='events'){
+    html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
+    html += `<a href="${buildEventsSearchURL(manualContext.center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
   } else {
-    html += filtered.slice(0,60).map(p=>{
-      const name = placeName(p.tags) || t('cat_'+p.category);
-      const addr = placeAddress(p.tags);
-      const already = manualStops.includes(p);
-      const idx = pois.indexOf(p);
-      return `<div class="browse-item">
-        <div>
-          <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
-          <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}${addr?' · '+escapeHtml(addr):''}</div>
-        </div>
-        <button type="button" class="swapbtn" onclick="addManualStop(${idx})" ${already?'disabled':''}>${already?escapeHtml(t('added_label')):escapeHtml(t('add_label'))}</button>
-      </div>`;
-    }).join('');
+    const filtered = pois.filter(p=> manualFilter==='all' || p.category===manualFilter);
+    html += `<div class="browse-list">`;
+    if(!filtered.length){
+      html += `<p class="mood-hint">${escapeHtml(t('browse_empty'))}</p>`;
+    } else {
+      html += filtered.slice(0,60).map(p=>{
+        const name = placeName(p.tags) || t('cat_'+p.category);
+        const addr = placeAddress(p.tags);
+        const already = manualStops.includes(p);
+        const idx = pois.indexOf(p);
+        return `<div class="browse-item">
+          <div>
+            <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
+            <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}${addr?' · '+escapeHtml(addr):''}</div>
+          </div>
+          <button type="button" class="swapbtn" onclick="addManualStop(${idx})" ${already?'disabled':''}>${already?escapeHtml(t('added_label')):escapeHtml(t('add_label'))}</button>
+        </div>`;
+      }).join('');
+    }
+    html += `</div>`;
   }
-  html += `</div></div>`;
+  html += `</div>`;
 
   $('result').innerHTML = html;
   $('result').style.display = 'block';
@@ -1344,7 +1281,6 @@ async function buildManualPlan(){
     const stops = scheduleStops(rawStops, startMin, legDurationsForStops);
     const totalWalkKm = route ? route.legs.slice(1).reduce((sum,l)=>sum+l.distanceKm,0) : rawStops.slice(1).reduce((sum,r)=>sum+r.distFromPrev,0);
     const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
-    moodOptions = null;
     currentPlan = { center, weather, dateStr, startMin, endMin: manualContext.endMin, vibe:null, group:null, budget:null,
       stops, routeGeometry: route?route.geometry:null, totalWalkKm, totalWalkMin, fromHistory:false };
     render();
@@ -1455,7 +1391,7 @@ function renderHistoryPanel(){
 function loadHistoryEntry(id){
   const entry = loadHistoryList().find(e=>e.id===id);
   if(!entry) return;
-  moodOptions = null; manualContext = null;
+  manualContext = null;
   currentPlan = { ...entry, fromHistory:true };
   closeHistoryPanel();
   render();
@@ -1470,7 +1406,7 @@ function clearHistoryAll(){
   renderHistoryPanel();
 }
 function refreshPanelLock(){
-  const anyOpen = $('history-panel').classList.contains('open') || $('auth-panel').classList.contains('open');
+  const anyOpen = $('history-panel').classList.contains('open') || $('auth-panel').classList.contains('open') || $('popular-panel').classList.contains('open');
   document.body.classList.toggle('panel-open', anyOpen);
 }
 function openHistoryPanel(){ $('history-overlay').classList.add('open'); $('history-panel').classList.add('open'); refreshPanelLock(); }
@@ -1481,6 +1417,40 @@ $('history-close').addEventListener('click', closeHistoryPanel);
 $('history-overlay').addEventListener('click', closeHistoryPanel);
 $('history-clear').addEventListener('click', ()=>{ if(confirm(t('history_clear_confirm'))) clearHistoryAll(); });
 $('lang-toggle').addEventListener('click', ()=>{ LANG = LANG==='tr' ? 'en' : 'tr'; applyI18n(); });
+
+// ---------- popular nearby (floating button) ----------
+// "Popular" here is a proxy — OSM places with the richest tag data from the last
+// search — not a verified popularity signal, since that data isn't freely available.
+// The panel says so explicitly rather than implying real ranking data.
+function renderPopularPanel(){
+  const el = $('popular-body');
+  if(!lastPOIContext || !lastPOIContext.pois.length){
+    el.innerHTML = `<p class="mood-hint">${escapeHtml(t('popular_empty'))}</p>
+      <a href="${buildEventsSearchURL(null)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+    return;
+  }
+  const { center, pois } = lastPOIContext;
+  const top = [...pois].sort((a,b)=>Object.keys(b.tags).length - Object.keys(a.tags).length).slice(0,8);
+  let html = `<div class="note">${escapeHtml(t('popular_places_note'))}</div>`;
+  html += top.map(p=>{
+    const name = placeName(p.tags) || t('cat_'+p.category);
+    return `<div class="browse-item">
+      <div>
+        <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
+        <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}</div>
+      </div>
+      <a class="swapbtn" target="_blank" href="${mapLink(p.lat,p.lon)}">${escapeHtml(t('open_maps_short'))}</a>
+    </div>`;
+  }).join('');
+  html += `<div class="divider-row"><span>${escapeHtml(t('or_divider'))}</span></div>`;
+  html += `<a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+  el.innerHTML = html;
+}
+function openPopularPanel(){ $('popular-overlay').classList.add('open'); $('popular-panel').classList.add('open'); refreshPanelLock(); }
+function closePopularPanel(){ $('popular-overlay').classList.remove('open'); $('popular-panel').classList.remove('open'); refreshPanelLock(); }
+$('popular-fab').addEventListener('click', ()=>{ renderPopularPanel(); openPopularPanel(); });
+$('popular-close').addEventListener('click', closePopularPanel);
+$('popular-overlay').addEventListener('click', closePopularPanel);
 
 // ---------- account (optional, requires a Firebase project) ----------
 // Everything above works with zero setup, saving plans only to this browser's
@@ -1665,12 +1635,7 @@ function render(){
   const emojiMap = { clear:'☀️', partly_cloudy:'⛅', foggy:'🌫️', rain:'🌧️', snow:'❄️', thunder:'⛈️' };
   const emoji = emojiMap[weather.codeKey] || '☀️';
 
-  let html = '';
-  if(moodOptions){
-    html += `<button class="again" id="back-to-options" style="margin-bottom:14px;">${escapeHtml(t('back_to_options'))}</button>`;
-  }
-
-  html += `<div class="card weathercard">
+  let html = `<div class="card weathercard">
     <div class="emoji">${emoji}</div>
     <div class="wtext">
       <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
@@ -1722,7 +1687,6 @@ function render(){
   $('result').style.display = 'block';
   $('share-btn').addEventListener('click', onShareClick);
   $('again-btn').addEventListener('click', planAgain);
-  if(moodOptions){ $('back-to-options').addEventListener('click', renderMoodOptions); }
 
   try{ renderMap(center, stops, routeGeometry); }catch(e){ console.warn('Map render failed:', e.message); }
 }
@@ -1731,23 +1695,17 @@ function render(){
 applyI18n();
 (function boot(){
   const params = new URLSearchParams(location.search);
-  if(!params.has('city')){
-    applyTimePreset('now2');
-    selectMood('chill');
-    return;
-  }
+  if(!params.has('city')) return;
   $('city').value = params.get('city') || '';
   if(params.has('date')) $('date').value = params.get('date');
   if(params.has('start')) $('start-time').value = params.get('start');
   if(params.has('end')) $('end-time').value = params.get('end');
-  setTimeChipMode('custom');
   if(params.has('vibe')){
     const v = params.get('vibe');
     document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===v));
   }
   if(params.has('group')) $('group').value = params.get('group');
   if(params.has('budget')) $('budget').value = params.get('budget');
-  openAdvanced();
   planDay();
 })();
 </script>
