@@ -32,14 +32,27 @@ Opening the file directly (double-click, `file://`) gives the page a "null" orig
 
 ## Known limitations (honest, not fixed yet)
 
-- No live "table available" / "sold out" / real opening-hours guarantee — OSM opening_hours data exists but isn't always current. Every stop links out to Maps so the user can double check before committing.
-- Walking time is straight-line distance × a walking-speed estimate, not a real routing engine (a routing API would fix this but adds a dependency).
+- No live "table available" / "sold out" / real opening-hours guarantee — the opening_hours heuristic (see V1.1 additions) catches common cases but OSM data isn't always current. Every stop links out to Maps so the user can double check before committing.
+- Walking times use a real routing engine (OSRM) when it responds in time, but silently fall back to a straight-line estimate if that request fails — no visible indicator of which one a given plan used.
 - No ticketed-events layer yet (concerts, shows) — biggest planned V2 addition, likely via a paid events API once there's a reason to pay for one.
 - Price/budget filtering is approximate — OSM rarely has reliable price data, so "budget" mode currently biases toward free/outdoor options rather than filtering by price.
 
+## V1.1 additions
+
+- **Group and budget now actually affect the plan.** Previously the "Group" and "Budget level" fields were collected but never read — the biggest gap from V1. Now: `friends` biases the evening slot toward bars/nightclubs, `solo` biases away from nightclubs; the $/$$/$$$ budget level nudges scoring toward free/cheap categories (parks, bakeries) or toward restaurants/bars/nightlife.
+- **Real walking routes.** Stop order is still chosen by the same greedy nearest-neighbor pass, but travel times between stops now come from a real routing engine — a public OSRM instance with the "foot" profile (`routing.openstreetmap.de`) — instead of straight-line distance × walking speed. Falls back to the old estimate if the routing call fails.
+- **Map view.** Each generated plan renders on a Leaflet/OpenStreetMap map with numbered pins and the actual walking route traced (or a dashed straight line when the route fetch failed).
+- **Opening-hours awareness (soft).** OSM's `opening_hours` tag is parsed for the common cases (`Mo-Fr 09:00-18:00`, `24/7`, multi-range/lunch-break splits) and used as a scoring nudge — a place that looks closed at its estimated visit time is heavily deprioritized but never hard-excluded, since the parser only covers common formats and unparseable tags are treated as "unknown," not "closed."
+- **Swap a stop.** Each stop card has a "suggest another" button that cycles through the next-best-scored alternative for that slot, recalculating downstream timing. After a manual swap, travel times for the edited legs revert to the straight-line estimate (re-querying the router on every click wasn't worth the latency).
+- **Share a plan.** Generates a URL with the form inputs encoded as query params; opening that link pre-fills the form and re-runs the plan automatically. It reproduces the *inputs*, not the exact output — if OSM/weather data changed since the link was made, the regenerated plan can differ.
+- **Saved plans (local only).** Every generated plan is saved to `localStorage` (last 20) and browsable from a side panel — no account, no server, so it's per-browser and lost if site data is cleared. Loading a saved plan skips the network calls entirely (weather/places/route are all snapshotted), but the "suggest another" swap button is disabled on saved plans since alternate candidates aren't persisted.
+- **More categories.** Added bakery, ice cream, and shopping (mall/department store) as additional stop types feeding into the existing vibe/budget logic.
+- **Turkish / English toggle.** UI language auto-detects from the browser and can be switched manually; covers all static UI text plus dynamically rendered content (category names, status/error messages, weather labels).
+- **XSS hardening.** Place names and addresses come from OpenStreetMap, which anyone can edit — they're now HTML-escaped before being inserted into the page instead of interpolated raw.
+
 ## Next steps if this goes further
 
-1. Real routing (OSRM or a mapping SDK) instead of straight-line estimates.
-2. A curated or partner events layer per major market.
-3. Save/share a plan (currently a single-session prototype, nothing persists).
+1. A curated or partner events layer per major market.
+2. Full RFC opening_hours parsing (seasonal rules, public holidays) instead of the common-cases heuristic.
+3. Server-side plan storage so a saved/shared plan survives across devices and browsers.
 4. Native geolocation flow tightened for mobile.
