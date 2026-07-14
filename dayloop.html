@@ -53,8 +53,8 @@
   .row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
   .row > div{flex:1;min-width:140px;}
   input[type=text],input[type=date],input[type=time],select{
-    width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
-    background:var(--panel2); color:var(--text); font-size:0.95rem; outline:none;
+    width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:16px; outline:none;
   }
   input:focus,select:focus{border-color:var(--accent2);}
   #city-wrap{position:relative;}
@@ -172,6 +172,32 @@
   .browse-meta{color:var(--muted);font-size:0.8rem;margin-top:2px;}
 
   @media (max-width:480px){ .moods{grid-template-columns:1fr;} }
+
+  /* ---------- mobile ---------- */
+  .map-tap-hint{
+    position:absolute; inset:0; background:rgba(0,0,0,0.35); color:#fff; display:flex;
+    align-items:center; justify-content:center; text-align:center; font-size:0.85rem; padding:16px;
+    border-radius:var(--radius); z-index:400; cursor:pointer;
+  }
+  #mapview{position:relative;}
+  @media (max-width:640px){
+    body{padding:20px 12px 60px;}
+    header{margin-bottom:20px;}
+    header h1{font-size:1.9rem;}
+    .card{padding:16px;border-radius:12px;}
+    .topbar{gap:6px;}
+    .iconbtn{padding:9px 11px;font-size:0.76rem;}
+    .chip{padding:11px 15px;font-size:0.85rem;}
+    .locbtn{padding:12px;}
+    .submit,.manual-link,.customize-toggle{padding:15px;}
+    .manual-link,.customize-toggle{padding-top:12px;padding-bottom:0;}
+    .swapbtn,.maplink{padding:10px 14px;}
+    .manual-item-actions button{width:36px;height:36px;font-size:0.9rem;}
+    .stop-actions{gap:10px;}
+    .share-row .again{flex:1;min-width:150px;}
+    #mapview{height:260px;}
+    .mood{padding:16px;}
+  }
 </style>
 </head>
 <body>
@@ -381,6 +407,7 @@ const STRINGS = {
     manual_build_btn:"Build this plan", browse_label:"Places near you", filter_all:"All",
     add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
     events_link:"🎟️ Get tickets & see events →",
+    map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
     email_label:"Email", password_label:"Password",
     signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
@@ -441,6 +468,7 @@ const STRINGS = {
     manual_build_btn:"Bu planı oluştur", browse_label:"Yakındaki yerler", filter_all:"Tümü",
     add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
+    map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
     email_label:"E-posta", password_label:"Şifre",
     signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
@@ -1473,7 +1501,17 @@ function renderMap(center, stops, geometry){
   const el = $('mapview');
   if(!el || typeof L === 'undefined') return;
   if(leafletMap){ leafletMap.remove(); leafletMap = null; }
-  leafletMap = L.map(el, { scrollWheelZoom:false });
+  // On touch devices a draggable map inside a scrolling page fights the page scroll —
+  // every attempt to scroll past the map instead pans it. Start it non-interactive on
+  // touch and require one tap to "unlock" it, same pattern Google Maps embeds use.
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  leafletMap = L.map(el, {
+    scrollWheelZoom:false,
+    dragging: !isTouch,
+    tap: !isTouch,
+    touchZoom: !isTouch,
+    doubleClickZoom: !isTouch,
+  });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution:'&copy; OpenStreetMap contributors', maxZoom:19,
   }).addTo(leafletMap);
@@ -1491,6 +1529,20 @@ function renderMap(center, stops, geometry){
     L.marker([p.lat,p.lon], { icon: L.divIcon({ className:'', html:`<div class="dl-pin">${label}</div>`, iconSize:[26,26] }) }).addTo(leafletMap);
   });
   leafletMap.fitBounds(L.latLngBounds(latlngs), { padding:[30,30] });
+
+  if(isTouch){
+    const hint = document.createElement('div');
+    hint.className = 'map-tap-hint';
+    hint.textContent = t('map_tap_hint');
+    hint.addEventListener('click', ()=>{
+      leafletMap.dragging.enable();
+      leafletMap.tap && leafletMap.tap.enable();
+      leafletMap.touchZoom.enable();
+      leafletMap.doubleClickZoom.enable();
+      hint.remove();
+    });
+    el.appendChild(hint);
+  }
 }
 
 // ---------- render ----------
