@@ -52,7 +52,7 @@
   label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
   .row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
   .row > div{flex:1;min-width:140px;}
-  input[type=text],input[type=date],input[type=time],select{
+  input[type=text],input[type=email],input[type=password],input[type=date],input[type=time],select{
     width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
     background:var(--panel2); color:var(--text); font-size:16px; outline:none;
   }
@@ -326,7 +326,7 @@
     <p class="mood-hint" data-i18n="signin_hint">Sign in to keep your saved plans across devices.</p>
     <div class="row"><div>
       <label data-i18n="email_label">Email</label>
-      <input type="text" id="auth-email" autocomplete="email">
+      <input type="email" id="auth-email" autocomplete="email">
     </div></div>
     <div class="row"><div>
       <label data-i18n="password_label">Password</label>
@@ -412,6 +412,16 @@ const STRINGS = {
     email_label:"Email", password_label:"Password",
     signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
     signed_in_label:"Account", signout_action:"Sign out",
+    autherr_missing_fields:"Enter both an email and a password.",
+    autherr_invalid_email:"That email address doesn't look right — check for typos.",
+    autherr_email_in_use:"An account already exists with that email — try signing in instead.",
+    autherr_weak_password:"Password must be at least 6 characters.",
+    autherr_wrong_password:"Wrong email or password.",
+    autherr_user_not_found:"No account found with that email — try creating one instead.",
+    autherr_too_many:"Too many attempts — wait a bit and try again.",
+    autherr_network:"Network error — check your connection and try again.",
+    autherr_popup_closed:"Sign-in window was closed before finishing.",
+    autherr_unauthorized_domain:"This site isn't authorized for sign-in yet — add it under Authentication > Settings > Authorized domains in Firebase.",
     lang_toggle:"TR",
   },
   tr:{
@@ -473,6 +483,16 @@ const STRINGS = {
     email_label:"E-posta", password_label:"Şifre",
     signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
     signed_in_label:"Hesap", signout_action:"Çıkış yap",
+    autherr_missing_fields:"E-posta ve şifre alanlarını doldur.",
+    autherr_invalid_email:"Bu e-posta adresi doğru görünmüyor — yazım hatası olabilir.",
+    autherr_email_in_use:"Bu e-posta ile zaten bir hesap var — giriş yapmayı dene.",
+    autherr_weak_password:"Şifre en az 6 karakter olmalı.",
+    autherr_wrong_password:"E-posta veya şifre yanlış.",
+    autherr_user_not_found:"Bu e-postayla bir hesap bulunamadı — önce hesap oluştur.",
+    autherr_too_many:"Çok fazla deneme yapıldı — biraz bekleyip tekrar dene.",
+    autherr_network:"Ağ hatası — bağlantını kontrol edip tekrar dene.",
+    autherr_popup_closed:"Giriş penceresi tamamlanmadan kapandı.",
+    autherr_unauthorized_domain:"Bu site henüz giriş için yetkili değil — Firebase'de Authentication > Settings > Authorized domains altına ekle.",
     lang_toggle:"EN",
   },
 };
@@ -1438,6 +1458,24 @@ function onAuthStateChangedUI(user){
     $('auth-signed-in').style.display = 'none';
   }
 }
+const AUTH_ERROR_KEYS = {
+  'auth/invalid-email': 'autherr_invalid_email',
+  'auth/missing-email': 'autherr_invalid_email',
+  'auth/email-already-in-use': 'autherr_email_in_use',
+  'auth/weak-password': 'autherr_weak_password',
+  'auth/missing-password': 'autherr_weak_password',
+  'auth/wrong-password': 'autherr_wrong_password',
+  'auth/invalid-credential': 'autherr_wrong_password',
+  'auth/user-not-found': 'autherr_user_not_found',
+  'auth/too-many-requests': 'autherr_too_many',
+  'auth/network-request-failed': 'autherr_network',
+  'auth/popup-closed-by-user': 'autherr_popup_closed',
+  'auth/unauthorized-domain': 'autherr_unauthorized_domain',
+};
+function translateAuthError(e){
+  const key = AUTH_ERROR_KEYS[e.code];
+  return key ? t(key) : e.message;
+}
 function showAuthError(msg){ const el=$('auth-error'); el.textContent = msg; el.style.display='block'; }
 function clearAuthError(){ $('auth-error').style.display='none'; }
 function openAuthPanel(){ $('auth-overlay').classList.add('open'); $('auth-panel').classList.add('open'); }
@@ -1467,18 +1505,22 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
     $('auth-overlay').addEventListener('click', closeAuthPanel);
     $('auth-signin-btn').addEventListener('click', async ()=>{
       clearAuthError();
-      try{ await fbAuth.signInWithEmailAndPassword($('auth-email').value.trim(), $('auth-password').value); closeAuthPanel(); }
-      catch(e){ showAuthError(e.message); }
+      const email = $('auth-email').value.trim(), pass = $('auth-password').value;
+      if(!email || !pass){ showAuthError(t('autherr_missing_fields')); return; }
+      try{ await fbAuth.signInWithEmailAndPassword(email, pass); closeAuthPanel(); }
+      catch(e){ showAuthError(translateAuthError(e)); }
     });
     $('auth-signup-btn').addEventListener('click', async ()=>{
       clearAuthError();
-      try{ await fbAuth.createUserWithEmailAndPassword($('auth-email').value.trim(), $('auth-password').value); closeAuthPanel(); }
-      catch(e){ showAuthError(e.message); }
+      const email = $('auth-email').value.trim(), pass = $('auth-password').value;
+      if(!email || !pass){ showAuthError(t('autherr_missing_fields')); return; }
+      try{ await fbAuth.createUserWithEmailAndPassword(email, pass); closeAuthPanel(); }
+      catch(e){ showAuthError(translateAuthError(e)); }
     });
     $('auth-google-btn').addEventListener('click', async ()=>{
       clearAuthError();
       try{ await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); closeAuthPanel(); }
-      catch(e){ showAuthError(e.message); }
+      catch(e){ showAuthError(translateAuthError(e)); }
     });
     $('auth-signout-btn').addEventListener('click', async ()=>{ await fbAuth.signOut(); closeHistoryPanel(); });
   }catch(e){
