@@ -57,6 +57,15 @@
     background:var(--panel2); color:var(--text); font-size:0.95rem; outline:none;
   }
   input:focus,select:focus{border-color:var(--accent2);}
+  #city-wrap{position:relative;}
+  .suggestions{
+    position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; box-shadow:0 20px 40px -20px rgba(0,0,0,0.4);
+    max-height:260px; overflow-y:auto; z-index:50; display:none;
+  }
+  .suggestion{padding:10px 14px; font-size:0.88rem; cursor:pointer; border-bottom:1px solid var(--border);}
+  .suggestion:last-child{border-bottom:none;}
+  .suggestion:hover, .suggestion.active{background:var(--panel2);}
   .locbtn{
     margin-top:8px; background:none; border:1px solid var(--border); color:var(--accent2);
     padding:9px 12px; border-radius:10px; font-size:0.85rem; cursor:pointer; width:100%;
@@ -68,18 +77,9 @@
     color:var(--muted); cursor:pointer; font-size:0.85rem; user-select:none; transition:.15s;
   }
   .chip.active{border-color:var(--accent); color:var(--text); background:rgba(var(--accent-rgb),0.14);}
-  .moods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:2px;}
-  .mood{
-    text-align:left; border:1px solid var(--border); background:var(--panel2); border-radius:14px;
-    padding:14px; cursor:pointer; color:var(--text); font-family:inherit; transition:.15s;
-  }
-  .mood:hover{border-color:var(--accent);}
-  .mood.active{border-color:var(--accent); background:rgba(var(--accent-rgb),0.12);}
-  .mood .glyph{font-family:var(--font-display); font-size:1.15rem; display:block; margin-bottom:6px; color:var(--accent);}
-  .mood .name{display:block; font-weight:700; font-size:0.92rem; margin-bottom:2px;}
-  .mood .desc{display:block; font-size:0.78rem; color:var(--muted); line-height:1.4;}
+  .mood-hint{color:var(--muted); font-size:0.85rem; margin:0 0 10px;}
   .customize-toggle{
-    background:none; border:none; color:var(--accent2); font-size:0.82rem; cursor:pointer; padding:12px 2px 0;
+    background:none; border:none; color:var(--accent2); font-size:0.82rem; cursor:pointer; padding:0;
     text-decoration:underline; text-underline-offset:3px;
   }
   .advanced{margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);}
@@ -88,6 +88,11 @@
     background:var(--accent); color:var(--accent-contrast); cursor:pointer; margin-top:6px;
   }
   .submit:disabled{opacity:0.5;cursor:not-allowed;}
+  .manual-link{
+    width:100%; background:none; border:none; color:var(--accent2); font-size:0.85rem; cursor:pointer;
+    padding:12px 0 0; text-decoration:underline; text-underline-offset:3px;
+  }
+  .manual-link:disabled{opacity:0.5;cursor:not-allowed;}
   #error{display:none;background:rgba(var(--danger-rgb),0.08);border:1px solid rgba(var(--danger-rgb),0.4);color:var(--danger-ink);padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
   #status{display:none;color:var(--muted);font-size:0.9rem;text-align:center;padding:20px;}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:-2px;}
@@ -114,9 +119,12 @@
   .stop a.maplink:hover{border-color:var(--accent2);}
   .swapbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:8px;font-size:0.8rem;cursor:pointer;}
   .swapbtn:hover{border-color:var(--accent2);color:var(--text);}
+  .swapbtn:disabled{opacity:0.4;cursor:not-allowed;}
   .travel{text-align:center;color:var(--muted);font-size:0.8rem;margin:2px 0 12px;}
   .travel span{background:var(--panel2);padding:4px 10px;border-radius:999px;border:1px solid var(--border);}
   .note{background:rgba(var(--accent2-rgb),0.10);border:1px solid rgba(var(--accent2-rgb),0.35);color:var(--accent2);padding:10px 14px;border-radius:10px;font-size:0.85rem;margin-bottom:16px;}
+  .events-link{display:inline-block;margin:0 0 16px;font-size:0.85rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);padding:8px 14px;border-radius:10px;}
+  .events-link:hover{border-color:var(--accent2);}
   .share-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
   footer{margin-top:28px;text-align:center;color:var(--muted);font-size:0.75rem;line-height:1.6;}
   footer a{color:var(--muted);}
@@ -134,6 +142,35 @@
   .history-item .hi-title{font-weight:700;margin-bottom:8px;}
   .history-item .hi-actions{display:flex;gap:8px;}
   .history-item button{background:none;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:0.78rem;cursor:pointer;}
+
+  .moods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:2px;}
+  .mood{
+    text-align:left; border:1px solid var(--border); background:var(--panel2); border-radius:14px;
+    padding:14px; cursor:pointer; color:var(--text); font-family:inherit; transition:.15s;
+  }
+  .mood:hover{border-color:var(--accent);}
+  .mood .glyph{font-family:var(--font-display); font-size:1.15rem; display:block; margin-bottom:6px; color:var(--accent);}
+  .mood .name{display:block; font-weight:700; font-size:0.92rem; margin-bottom:2px;}
+  .mood .desc{display:block; font-size:0.78rem; color:var(--muted); line-height:1.4;}
+  .mood .meta{display:block; font-size:0.76rem; color:var(--accent2); margin-top:8px;}
+  .mood .pick-btn{
+    margin-top:10px; width:100%; background:none; border:1px solid var(--border); color:var(--text);
+    padding:8px; border-radius:8px; font-size:0.8rem; cursor:pointer;
+  }
+  .mood .pick-btn:hover{border-color:var(--accent);}
+
+  .manual-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:0.9rem;}
+  .manual-item:last-child{border-bottom:none;}
+  .manual-item-actions{display:flex;gap:4px;flex-shrink:0;}
+  .manual-item-actions button{background:none;border:1px solid var(--border);color:var(--muted);width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:0.8rem;}
+  .manual-item-actions button:disabled{opacity:0.3;cursor:not-allowed;}
+  .manual-item-actions button:hover:not(:disabled){border-color:var(--accent2);color:var(--text);}
+  .browse-list{max-height:360px;overflow-y:auto;margin-top:12px;}
+  .browse-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .browse-item:last-child{border-bottom:none;}
+  .browse-name{font-weight:600;font-size:0.92rem;}
+  .browse-meta{color:var(--muted);font-size:0.8rem;margin-top:2px;}
+
   @media (max-width:480px){ .moods{grid-template-columns:1fr;} }
 </style>
 </head>
@@ -153,7 +190,10 @@
     <div class="row">
       <div>
         <label data-i18n="city_label">City or address</label>
-        <input type="text" id="city" data-i18n-placeholder="city_placeholder" placeholder="e.g. Lisbon, or 41.39,2.16">
+        <div id="city-wrap">
+          <input type="text" id="city" data-i18n-placeholder="city_placeholder" placeholder="e.g. Lisbon, or 41.39,2.16" autocomplete="off">
+          <div id="city-suggestions" class="suggestions"></div>
+        </div>
         <button class="locbtn" id="use-loc" type="button" data-i18n="use_loc">📍 Use my current location</button>
       </div>
     </div>
@@ -186,28 +226,7 @@
     <div class="row">
       <div style="flex:1 1 100%;">
         <label data-i18n="mood_label">Mood</label>
-        <div class="moods" id="mood-cards">
-          <button type="button" class="mood" data-preset="romantic">
-            <span class="glyph">✦</span>
-            <span class="name" data-i18n="mood_romantic_name">Romantic evening</span>
-            <span class="desc" data-i18n="mood_romantic_desc">Treat yourself, evening-paced</span>
-          </button>
-          <button type="button" class="mood" data-preset="solo">
-            <span class="glyph">◐</span>
-            <span class="name" data-i18n="mood_solo_name">Solo reset</span>
-            <span class="desc" data-i18n="mood_solo_desc">Quiet, unhurried, budget-easy</span>
-          </button>
-          <button type="button" class="mood" data-preset="friends">
-            <span class="glyph">↗</span>
-            <span class="name" data-i18n="mood_friends_name">With friends</span>
-            <span class="desc" data-i18n="mood_friends_desc">A little bolder, built for a group</span>
-          </button>
-          <button type="button" class="mood" data-preset="chill">
-            <span class="glyph">〜</span>
-            <span class="name" data-i18n="mood_chill_name">Just chill</span>
-            <span class="desc" data-i18n="mood_chill_desc">No agenda, let it decide</span>
-          </button>
-        </div>
+        <p class="mood-hint" data-i18n="mood_hint">We'll build a plan for every mood below — pick the one that fits.</p>
         <button type="button" class="customize-toggle" id="customize-toggle">Customize vibe, group, budget →</button>
         <div class="advanced" id="advanced-controls" style="display:none;">
           <div class="row">
@@ -244,6 +263,7 @@
     </div>
 
     <button class="submit" id="go" data-i18n="go_btn">Plan my day</button>
+    <button type="button" class="manual-link" id="manual-btn" data-i18n="manual_btn">🖐️ Or pick the places yourself →</button>
   </div>
 
   <div id="error"></div>
@@ -281,6 +301,7 @@ const STRINGS = {
     when_label:"When", date_label:"Date", start_label:"Start time", end_label:"End time",
     time_now2:"Right now, ~2 hours", time_nowday:"Right now, most of the day", time_custom:"Choose a specific time",
     mood_label:"Mood",
+    mood_hint:"We'll build a plan for every mood below — pick the one that fits.",
     mood_romantic_name:"Romantic evening", mood_romantic_desc:"Treat yourself, evening-paced",
     mood_solo_name:"Solo reset", mood_solo_desc:"Quiet, unhurried, budget-easy",
     mood_friends_name:"With friends", mood_friends_desc:"A little bolder, built for a group",
@@ -292,6 +313,7 @@ const STRINGS = {
     group_couple:"Couple / date", group_solo:"Solo", group_friends:"Friends",
     budget_1:"$ — keep it cheap", budget_2:"$$ — normal", budget_3:"$$$ — treat yourself",
     go_btn:"Plan my day",
+    manual_btn:"🖐️ Or pick the places yourself →",
     status_location:"Finding your location…", status_weather:"Checking the weather…",
     status_places:"Finding places nearby…", status_places_progress:"Finding places nearby… ({msg})",
     status_building:"Building your day…", status_routing:"Mapping the walking route…",
@@ -319,7 +341,13 @@ const STRINGS = {
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
     footer_note:"Prototype — walking times are estimates, always double-check opening hours before you go.",
-    open_maps:"Open in Maps →", nearby_word:"nearby",
+    open_maps:"Map & reviews →", open_instagram:"Instagram →", nearby_word:"nearby",
+    compare_title:"Here's your day, four ways:",
+    view_full_plan:"See this plan →", back_to_options:"← Back to all options",
+    my_day_label:"My day", my_day_empty:"Nothing added yet — browse places below and tap + to add them.",
+    manual_build_btn:"Build this plan", browse_label:"Places near you", filter_all:"All",
+    add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
+    events_link:"🎟️ Get tickets & see events →",
     lang_toggle:"TR",
   },
   tr:{
@@ -329,6 +357,7 @@ const STRINGS = {
     when_label:"Ne zaman", date_label:"Tarih", start_label:"Başlangıç saati", end_label:"Bitiş saati",
     time_now2:"Şimdi, ~2 saat", time_nowday:"Şimdi, günün geri kalanı", time_custom:"Belirli bir saat seç",
     mood_label:"Mod",
+    mood_hint:"Aşağıda her mod için bir plan hazırlayacağız — sana uygun olanı seç.",
     mood_romantic_name:"Romantik akşam", mood_romantic_desc:"Kendini şımart, akşam temposunda",
     mood_solo_name:"Tek başına mola", mood_solo_desc:"Sakin, aceleye gerek yok, bütçe dostu",
     mood_friends_name:"Arkadaşlarla", mood_friends_desc:"Biraz daha cesur, grup için uygun",
@@ -340,6 +369,7 @@ const STRINGS = {
     group_couple:"Çift / buluşma", group_solo:"Tek başına", group_friends:"Arkadaşlarla",
     budget_1:"$ — ucuz tutalım", budget_2:"$$ — normal", budget_3:"$$$ — kendimi şımartayım",
     go_btn:"Günümü planla",
+    manual_btn:"🖐️ Yerleri kendin seç →",
     status_location:"Konum bulunuyor…", status_weather:"Hava durumu kontrol ediliyor…",
     status_places:"Yakındaki yerler aranıyor…", status_places_progress:"Yakındaki yerler aranıyor… ({msg})",
     status_building:"Günün planı oluşturuluyor…", status_routing:"Yürüyüş rotası hesaplanıyor…",
@@ -367,7 +397,13 @@ const STRINGS = {
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
     footer_note:"Prototip — yürüyüş süreleri tahminidir, gitmeden önce açılış saatlerini mutlaka kontrol et.",
-    open_maps:"Haritada Aç →", nearby_word:"yakında",
+    open_maps:"Harita ve yorumlar →", open_instagram:"Instagram →", nearby_word:"yakında",
+    compare_title:"İşte günün, dört farklı şekilde:",
+    view_full_plan:"Bu planı seç →", back_to_options:"← Tüm seçeneklere dön",
+    my_day_label:"Günüm", my_day_empty:"Henüz bir şey eklemedin — aşağıdan yer seçip + ile ekle.",
+    manual_build_btn:"Bu planı oluştur", browse_label:"Yakındaki yerler", filter_all:"Tümü",
+    add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
+    events_link:"🎟️ Bilet al / etkinlikleri gör →",
     lang_toggle:"EN",
   },
 };
@@ -389,7 +425,9 @@ function applyI18n(){
   });
   $('lang-toggle').textContent = STRINGS[LANG].lang_toggle;
   $('customize-toggle').textContent = advancedOpen ? t('customize_hide') : t('customize_show');
-  if(currentPlan) render();
+  if(manualContext){ renderManualBuilder(); }
+  else if(moodOptions && !currentPlan){ renderMoodOptions(); }
+  else if(currentPlan){ render(); }
 }
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -401,6 +439,7 @@ const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
 const WALK_SPEED_KMH = 4.5;
 let currentPlan = null;
+let moodOptions = null;
 
 const CATEGORY_TAGS = {
   cafe:       [['amenity','cafe']],
@@ -421,7 +460,12 @@ const CATEGORY_TAGS = {
 const INDOOR = new Set(['cafe','restaurant','bar','nightclub','cinema','museum','gallery','bakery','ice_cream','shopping']);
 const OUTDOOR = new Set(['park','viewpoint','artwork']);
 const SLOT_EMOJI = { coffee:'☕', activity:'🎯', food:'🍽️', evening:'🌙' };
+const CATEGORY_EMOJI = { cafe:'☕', restaurant:'🍽️', bar:'🍸', nightclub:'🎉', cinema:'🎬', museum:'🏛️',
+  gallery:'🖼️', park:'🌳', viewpoint:'👁️', artwork:'🎨', bakery:'🥐', ice_cream:'🍦', shopping:'🛍️' };
+const CATEGORY_DURATION_MIN = { cafe:45, restaurant:90, bar:75, nightclub:120, cinema:120, museum:90,
+  gallery:60, park:60, viewpoint:30, artwork:20, bakery:20, ice_cream:20, shopping:60 };
 const VIBE_EMOJI = { romantic:'💕', chill:'😌', adventurous:'🧭', budget:'💸' };
+const MOOD_GLYPH = { romantic:'✦', solo:'◐', friends:'↗', chill:'〜' };
 
 const VIBE_MAP = {
   romantic:    { coffee:['cafe','bakery'], activity:['viewpoint','museum','gallery','park'], food:['restaurant'], evening:['bar'] },
@@ -465,8 +509,25 @@ function placeAddress(tags){
   const parts = [tags['addr:housenumber'], tags['addr:street'] || tags['addr:city']].filter(Boolean);
   return parts.length ? parts.join(' ') : null;
 }
+function placeInstagram(tags){
+  let handle = tags['contact:instagram'] || tags['instagram'];
+  if(!handle) return null;
+  handle = handle.trim();
+  if(!handle) return null;
+  if(/^https?:\/\//i.test(handle)) return handle;
+  return `https://instagram.com/${handle.replace(/^@/,'')}`;
+}
 function mapLink(lat,lon){
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+}
+// A plain Google search is used instead of a guessed deep link into Biletix/Ticketmaster's
+// own site search — their URL query formats aren't something to assume without checking,
+// and a broken guessed link is worse than a search results page.
+function buildEventsSearchURL(center){
+  const cityQuery = center.label ? center.label.split(',')[0] : `${center.lat.toFixed(2)},${center.lon.toFixed(2)}`;
+  const isTurkey = /turkey/i.test(center.label || '');
+  const q = isTurkey ? `Biletix ${cityQuery} etkinlikler bilet` : `events near ${cityQuery} tickets Ticketmaster Eventbrite`;
+  return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 }
 
 // ---------- opening_hours heuristic ----------
@@ -554,6 +615,64 @@ async function geocodeCity(q){
   if(!data.length) throw new Error(`Could not find "${q}". Try a more specific place name.`);
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), label: data[0].display_name };
 }
+
+// ---------- city autocomplete ----------
+let selectedCitySuggestion = null;
+let autocompleteTimer = null;
+let lastSuggestions = [];
+let suggestionIndex = -1;
+
+function renderCitySuggestions(items){
+  lastSuggestions = items;
+  suggestionIndex = -1;
+  const box = $('city-suggestions');
+  if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.innerHTML = items.map((it,i)=>`<div class="suggestion" data-idx="${i}">${escapeHtml(it.display_name)}</div>`).join('');
+  box.style.display='block';
+}
+function highlightSuggestion(){
+  document.querySelectorAll('#city-suggestions .suggestion').forEach((el,i)=>el.classList.toggle('active', i===suggestionIndex));
+}
+async function fetchCitySuggestions(q){
+  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=6`;
+  try{
+    const res = await fetchWithTimeout(url, { headers: { 'Accept-Language': LANG==='tr' ? 'tr' : 'en' } }, 6000);
+    if(!res.ok) return [];
+    return await res.json();
+  }catch(e){ return []; }
+}
+$('city').addEventListener('input', ()=>{
+  selectedCitySuggestion = null;
+  const q = $('city').value.trim();
+  clearTimeout(autocompleteTimer);
+  if(q.length < 2){ renderCitySuggestions([]); return; }
+  autocompleteTimer = setTimeout(async ()=>{
+    const items = await fetchCitySuggestions(q);
+    renderCitySuggestions(items);
+  }, 400);
+});
+$('city').addEventListener('keydown', (e)=>{
+  if(!lastSuggestions.length || $('city-suggestions').style.display==='none') return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); suggestionIndex = Math.min(suggestionIndex+1, lastSuggestions.length-1); highlightSuggestion(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); suggestionIndex = Math.max(suggestionIndex-1, 0); highlightSuggestion(); }
+  else if(e.key==='Enter'){ if(suggestionIndex>=0){ e.preventDefault(); pickCitySuggestion(suggestionIndex); } }
+  else if(e.key==='Escape'){ renderCitySuggestions([]); }
+});
+$('city-suggestions').addEventListener('click', (e)=>{
+  const row = e.target.closest('.suggestion');
+  if(!row) return;
+  pickCitySuggestion(parseInt(row.dataset.idx,10));
+});
+function pickCitySuggestion(idx){
+  const item = lastSuggestions[idx];
+  if(!item) return;
+  $('city').value = item.display_name.split(',').slice(0,2).join(',');
+  selectedCitySuggestion = { lat: parseFloat(item.lat), lon: parseFloat(item.lon), label: item.display_name };
+  renderCitySuggestions([]);
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#city-wrap')) renderCitySuggestions([]);
+});
 
 async function fetchWeather(lat,lon,dateStr){
   const url = `${METEO_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
@@ -762,10 +881,47 @@ function scheduleStops(stops, startMin, legDurationsMin){
       t += walk;
     }
     const start = t;
-    const dur = SLOT_DURATION_MIN[s.slotType] || 60;
+    const dur = SLOT_DURATION_MIN[s.slotType] || CATEGORY_DURATION_MIN[s.poi?.category] || 60;
     t += dur;
     return { ...s, start, end: t, walkFromPrev: walk };
   });
+}
+
+// ---------- shared plan-building pipeline ----------
+async function generatePlanCore(cityInput, dateStr, startMin, endMin){
+  let center;
+  const coordMatch = cityInput.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+  setStatus(t('status_location'));
+  if(selectedCitySuggestion){
+    center = selectedCitySuggestion;
+  } else if(coordMatch){
+    center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[3]), label: cityInput };
+  } else {
+    center = await geocodeCity(cityInput);
+  }
+
+  setStatus(t('status_weather'));
+  const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
+  const weather = summarizeWeather(weatherJson, startMin, endMin);
+
+  setStatus(t('status_places'));
+  const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+  return { center, weather, pois };
+}
+
+async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, group, budget){
+  const rawStops = buildItinerary(pois, center, { vibe, group, budget, dateStr, startMin, endMin, indoorBias: weather.indoorBias });
+  if(!rawStops.length) return null;
+  const points = [center, ...rawStops.map(s=>s.poi)];
+  const route = await fetchWalkingRoute(points);
+  const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
+  const stops = scheduleStops(rawStops, startMin, legDurationsForStops);
+  const totalWalkKm = route ? route.legs.slice(1).reduce((sum,l)=>sum+l.distanceKm,0) : rawStops.slice(1).reduce((sum,r)=>sum+r.distFromPrev,0);
+  const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
+  return {
+    center, weather, dateStr, startMin, endMin, vibe, group, budget,
+    stops, routeGeometry: route ? route.geometry : null, totalWalkKm, totalWalkMin, fromHistory:false,
+  };
 }
 
 // ---------- UI wiring ----------
@@ -776,12 +932,12 @@ document.querySelectorAll('#vibe-chips .chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
-    clearMoodSelection();
   });
 });
 
 $('use-loc').addEventListener('click', ()=>{
   if(!navigator.geolocation){ showError(t('error_geoloc_unsupported')); return; }
+  selectedCitySuggestion = null;
   $('use-loc').textContent = t('use_loc_locating');
   navigator.geolocation.getCurrentPosition(
     pos => { $('city').value = `${pos.coords.latitude.toFixed(5)},${pos.coords.longitude.toFixed(5)}`; $('use-loc').textContent=t('use_loc'); },
@@ -821,85 +977,237 @@ document.querySelectorAll('#time-chips .chip').forEach(chip=>{
   chip.addEventListener('click', ()=> applyTimePreset(chip.dataset.val));
 });
 
-// ---------- mood presets ----------
 function selectMood(key){
   const preset = MOOD_PRESETS[key];
   if(!preset) return;
   document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===preset.vibe));
   $('group').value = preset.group;
   $('budget').value = preset.budget;
-  document.querySelectorAll('#mood-cards .mood').forEach(m=>m.classList.toggle('active', m.dataset.preset===key));
 }
-function clearMoodSelection(){
-  document.querySelectorAll('#mood-cards .mood').forEach(m=>m.classList.remove('active'));
-}
-document.querySelectorAll('#mood-cards .mood').forEach(card=>{
-  card.addEventListener('click', ()=> selectMood(card.dataset.preset));
-});
-$('group').addEventListener('change', clearMoodSelection);
-$('budget').addEventListener('change', clearMoodSelection);
 
 function openAdvanced(){ $('advanced-controls').style.display='block'; advancedOpen=true; $('customize-toggle').textContent = t('customize_hide'); }
 function closeAdvanced(){ $('advanced-controls').style.display='none'; advancedOpen=false; $('customize-toggle').textContent = t('customize_show'); }
 $('customize-toggle').addEventListener('click', ()=> advancedOpen ? closeAdvanced() : openAdvanced());
 
 $('go').addEventListener('click', planDay);
+$('manual-btn').addEventListener('click', startManualMode);
 
-async function planDay(){
-  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+function readTimeInputs(){
   const cityInput = $('city').value.trim();
-  const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
-  const groupVal = $('group').value;
-  const budgetVal = parseInt($('budget').value,10);
   const dateStr = $('date').value;
   const startMin = toMinutes($('start-time').value);
   const endMin = toMinutes($('end-time').value);
+  return { cityInput, dateStr, startMin, endMin };
+}
+function validateTimeInputs({ cityInput, startMin, endMin }){
+  if(!cityInput){ showError(t('error_enter_city')); return false; }
+  if(endMin <= startMin){ showError(t('error_end_after_start')); return false; }
+  return true;
+}
 
-  if(!cityInput){ showError(t('error_enter_city')); return; }
-  if(endMin <= startMin){ showError(t('error_end_after_start')); return; }
+async function planDay(){
+  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+  moodOptions = null; currentPlan = null; manualContext = null;
+  const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
+  if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
 
-  $('go').disabled = true;
+  $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    let center;
-    const coordMatch = cityInput.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
-    setStatus(t('status_location'));
-    if(coordMatch){
-      center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[3]), label: cityInput };
-    } else {
-      center = await geocodeCity(cityInput);
-    }
-
-    setStatus(t('status_weather'));
-    const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
-    const weather = summarizeWeather(weatherJson, startMin, endMin);
-
-    setStatus(t('status_places'));
-    const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+    const { center, weather, pois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
     if(!pois.length){
       showError(t('error_no_places'));
-      setStatus(''); $('go').disabled=false; return;
+      setStatus(''); return;
     }
 
     setStatus(t('status_building'));
-    const rawStops = buildItinerary(pois, center, { vibe, group: groupVal, budget: budgetVal, dateStr, startMin, endMin, indoorBias: weather.indoorBias });
-    if(!rawStops.length){
-      showError(t('error_no_matches'));
-      setStatus(''); $('go').disabled=false; return;
+    if(advancedOpen){
+      const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
+      const groupVal = $('group').value;
+      const budgetVal = parseInt($('budget').value,10);
+      setStatus(t('status_routing'));
+      const plan = await buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, groupVal, budgetVal);
+      if(!plan){ showError(t('error_no_matches')); setStatus(''); return; }
+      currentPlan = plan;
+      render();
+      saveToHistory(currentPlan);
+    } else {
+      const keys = Object.keys(MOOD_PRESETS);
+      const results = await Promise.all(keys.map(key=>{
+        const preset = MOOD_PRESETS[key];
+        return buildFullPlan(pois, center, weather, dateStr, startMin, endMin, preset.vibe, preset.group, parseInt(preset.budget,10));
+      }));
+      moodOptions = {};
+      keys.forEach((key,i)=>{ if(results[i]) moodOptions[key] = results[i]; });
+      if(!Object.keys(moodOptions).length){ showError(t('error_no_matches')); setStatus(''); return; }
+      renderMoodOptions();
     }
+    setStatus('');
+  } catch(e){
+    console.error(e);
+    showError(e.message || 'Something went wrong. Please try again.');
+    setStatus('');
+  } finally {
+    $('go').disabled = false; $('manual-btn').disabled = false;
+  }
+}
 
-    setStatus(t('status_routing'));
-    const points = [center, ...rawStops.map(s=>s.poi)];
+function renderMoodOptions(){
+  let html = `<div class="note">${escapeHtml(t('compare_title'))}</div>`;
+  html += `<div class="moods">`;
+  Object.entries(moodOptions).forEach(([key, plan])=>{
+    const first = plan.stops[0];
+    const firstName = first ? (placeName(first.poi.tags) || t('cat_'+first.poi.category)) : '';
+    html += `<div class="mood">
+      <span class="glyph">${MOOD_GLYPH[key]||'✦'}</span>
+      <span class="name">${escapeHtml(t('mood_'+key+'_name'))}</span>
+      <span class="desc">${escapeHtml(t('mood_'+key+'_desc'))}</span>
+      <span class="meta">${plan.stops.length} ${escapeHtml(t('summary_stops'))} · ${plan.totalWalkKm.toFixed(1)} km${firstName ? ' · '+escapeHtml(firstName) : ''}</span>
+      <button type="button" class="pick-btn" onclick="chooseMoodOption('${key}')">${escapeHtml(t('view_full_plan'))}</button>
+    </div>`;
+  });
+  html += `</div>`;
+  $('result').innerHTML = html;
+  $('result').style.display = 'block';
+}
+function chooseMoodOption(key){
+  const plan = moodOptions[key];
+  if(!plan) return;
+  selectMood(key);
+  currentPlan = plan;
+  render();
+  saveToHistory(currentPlan);
+}
+
+function planAgain(){
+  $('result').style.display='none';
+  $('result').innerHTML='';
+  clearError();
+  moodOptions = null; currentPlan = null; manualContext = null;
+  document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ---------- manual planning ----------
+let manualContext = null;
+let manualStops = [];
+let manualFilter = 'all';
+
+async function startManualMode(){
+  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+  moodOptions = null; currentPlan = null;
+  const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
+  if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
+
+  $('go').disabled = true; $('manual-btn').disabled = true;
+  try{
+    const { center, weather, pois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    if(!pois.length){ showError(t('error_no_places')); setStatus(''); return; }
+    manualContext = { center, weather, dateStr, startMin, endMin, pois };
+    manualStops = [];
+    manualFilter = 'all';
+    renderManualBuilder();
+    setStatus('');
+  } catch(e){
+    console.error(e);
+    showError(e.message || 'Something went wrong. Please try again.');
+    setStatus('');
+  } finally {
+    $('go').disabled = false; $('manual-btn').disabled = false;
+  }
+}
+
+function renderManualBuilder(){
+  const { pois } = manualContext;
+  let html = `<div class="card">`;
+  html += `<label>${escapeHtml(t('my_day_label'))}</label>`;
+  if(!manualStops.length){
+    html += `<p class="mood-hint">${escapeHtml(t('my_day_empty'))}</p>`;
+  } else {
+    html += manualStops.map((poi,i)=>{
+      const name = placeName(poi.tags) || t('cat_'+poi.category);
+      return `<div class="manual-item">
+        <span>${i+1}. ${escapeHtml(name)} <em>(${escapeHtml(t('cat_'+poi.category))})</em></span>
+        <span class="manual-item-actions">
+          <button type="button" onclick="moveManualStop(${i},-1)" ${i===0?'disabled':''}>↑</button>
+          <button type="button" onclick="moveManualStop(${i},1)" ${i===manualStops.length-1?'disabled':''}>↓</button>
+          <button type="button" onclick="removeManualStop(${i})">✕</button>
+        </span>
+      </div>`;
+    }).join('');
+    html += `<button class="submit" id="manual-build-btn">${escapeHtml(t('manual_build_btn'))}</button>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="card">`;
+  html += `<label>${escapeHtml(t('browse_label'))}</label>`;
+  html += `<div class="chips" id="manual-filter-chips">
+    <div class="chip ${manualFilter==='all'?'active':''}" data-cat="all">${escapeHtml(t('filter_all'))}</div>
+    ${Object.keys(CATEGORY_TAGS).map(c=>`<div class="chip ${manualFilter===c?'active':''}" data-cat="${c}">${escapeHtml(t('cat_'+c))}</div>`).join('')}
+  </div>`;
+  const filtered = pois.filter(p=> manualFilter==='all' || p.category===manualFilter);
+  html += `<div class="browse-list">`;
+  if(!filtered.length){
+    html += `<p class="mood-hint">${escapeHtml(t('browse_empty'))}</p>`;
+  } else {
+    html += filtered.slice(0,60).map(p=>{
+      const name = placeName(p.tags) || t('cat_'+p.category);
+      const addr = placeAddress(p.tags);
+      const already = manualStops.includes(p);
+      const idx = pois.indexOf(p);
+      return `<div class="browse-item">
+        <div>
+          <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
+          <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}${addr?' · '+escapeHtml(addr):''}</div>
+        </div>
+        <button type="button" class="swapbtn" onclick="addManualStop(${idx})" ${already?'disabled':''}>${already?escapeHtml(t('added_label')):escapeHtml(t('add_label'))}</button>
+      </div>`;
+    }).join('');
+  }
+  html += `</div></div>`;
+
+  $('result').innerHTML = html;
+  $('result').style.display = 'block';
+  if(manualStops.length && $('manual-build-btn')) $('manual-build-btn').addEventListener('click', buildManualPlan);
+  document.querySelectorAll('#manual-filter-chips .chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ manualFilter = chip.dataset.cat; renderManualBuilder(); });
+  });
+}
+function addManualStop(idx){
+  const poi = manualContext.pois[idx];
+  if(!poi || manualStops.includes(poi)) return;
+  manualStops.push(poi);
+  renderManualBuilder();
+}
+function removeManualStop(i){
+  manualStops.splice(i,1);
+  renderManualBuilder();
+}
+function moveManualStop(i, dir){
+  const j = i+dir;
+  if(j<0 || j>=manualStops.length) return;
+  [manualStops[i], manualStops[j]] = [manualStops[j], manualStops[i]];
+  renderManualBuilder();
+}
+async function buildManualPlan(){
+  const { center, weather, dateStr, startMin } = manualContext;
+  const btn = $('manual-build-btn');
+  if(btn) btn.disabled = true;
+  setStatus(t('status_routing'));
+  try{
+    let prev = center;
+    const rawStops = manualStops.map(poi=>{
+      const distFromPrev = haversineKm(prev, poi);
+      prev = poi;
+      return { slotType:null, poi, distFromPrev };
+    });
+    const points = [center, ...manualStops];
     const route = await fetchWalkingRoute(points);
     const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
     const stops = scheduleStops(rawStops, startMin, legDurationsForStops);
     const totalWalkKm = route ? route.legs.slice(1).reduce((sum,l)=>sum+l.distanceKm,0) : rawStops.slice(1).reduce((sum,r)=>sum+r.distFromPrev,0);
     const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
-
-    currentPlan = {
-      center, weather, dateStr, startMin, endMin, vibe, group: groupVal, budget: budgetVal,
-      stops, routeGeometry: route ? route.geometry : null, totalWalkKm, totalWalkMin, fromHistory:false,
-    };
-
+    moodOptions = null;
+    currentPlan = { center, weather, dateStr, startMin, endMin: manualContext.endMin, vibe:null, group:null, budget:null,
+      stops, routeGeometry: route?route.geometry:null, totalWalkKm, totalWalkMin, fromHistory:false };
     render();
     saveToHistory(currentPlan);
     setStatus('');
@@ -908,15 +1216,8 @@ async function planDay(){
     showError(e.message || 'Something went wrong. Please try again.');
     setStatus('');
   } finally {
-    $('go').disabled = false;
+    if($('manual-build-btn')) $('manual-build-btn').disabled = false;
   }
-}
-
-function planAgain(){
-  $('result').style.display='none';
-  $('result').innerHTML='';
-  clearError();
-  document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 // ---------- swap a single stop for the next-best alternative ----------
@@ -955,9 +1256,10 @@ function buildShareURL(){
     p.set('start', $('start-time').value);
     p.set('end', $('end-time').value);
   }
-  p.set('vibe', cp ? cp.vibe : document.querySelector('#vibe-chips .chip.active').dataset.val);
-  p.set('group', cp ? cp.group : $('group').value);
-  p.set('budget', String(cp ? cp.budget : $('budget').value));
+  const vibe = (cp && cp.vibe) ? cp.vibe : document.querySelector('#vibe-chips .chip.active').dataset.val;
+  p.set('vibe', vibe);
+  p.set('group', (cp && cp.group) ? cp.group : $('group').value);
+  p.set('budget', String((cp && cp.budget) ? cp.budget : $('budget').value));
   return `${location.origin}${location.pathname}?${p.toString()}`;
 }
 async function onShareClick(){
@@ -998,7 +1300,7 @@ function renderHistoryPanel(){
   el.innerHTML = list.map(entry=>{
     const place = entry.center.label ? entry.center.label.split(',').slice(0,2).join(',') : `${entry.center.lat.toFixed(2)}, ${entry.center.lon.toFixed(2)}`;
     return `<div class="history-item">
-      <div class="hi-top"><span>${escapeHtml(entry.dateStr)}</span><span>${VIBE_EMOJI[entry.vibe]||''}</span></div>
+      <div class="hi-top"><span>${escapeHtml(entry.dateStr)}</span><span>${VIBE_EMOJI[entry.vibe]||'📍'}</span></div>
       <div class="hi-title">${escapeHtml(place)}</div>
       <div class="hi-actions">
         <button onclick="loadHistoryEntry(${entry.id})">${escapeHtml(t('history_load'))}</button>
@@ -1010,6 +1312,7 @@ function renderHistoryPanel(){
 function loadHistoryEntry(id){
   const entry = loadHistoryList().find(e=>e.id===id);
   if(!entry) return;
+  moodOptions = null; manualContext = null;
   currentPlan = { ...entry, fromHistory:true };
   closeHistoryPanel();
   render();
@@ -1070,7 +1373,12 @@ function render(){
   const emojiMap = { clear:'☀️', partly_cloudy:'⛅', foggy:'🌫️', rain:'🌧️', snow:'❄️', thunder:'⛈️' };
   const emoji = emojiMap[weather.codeKey] || '☀️';
 
-  let html = `<div class="card weathercard">
+  let html = '';
+  if(moodOptions){
+    html += `<button class="again" id="back-to-options" style="margin-bottom:14px;">${escapeHtml(t('back_to_options'))}</button>`;
+  }
+
+  html += `<div class="card weathercard">
     <div class="emoji">${emoji}</div>
     <div class="wtext">
       <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
@@ -1080,6 +1388,7 @@ function render(){
 
   const placeLabel = center.label ? center.label.split(',').slice(0,2).join(',') : `${center.lat.toFixed(3)}, ${center.lon.toFixed(3)}`;
   html += `<div class="note">${escapeHtml(t('planning_around'))} <strong>${escapeHtml(placeLabel)}</strong></div>`;
+  html += `<a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
 
   html += `<div class="summary">
     <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
@@ -1096,14 +1405,17 @@ function render(){
     const name = placeName(s.poi.tags) || `${t('cat_'+s.poi.category)} ${t('nearby_word')}`;
     const addr = placeAddress(s.poi.tags);
     const slotKey = s.slotType==='activity2' ? 'activity' : s.slotType;
+    const timeLabel = slotKey ? `${SLOT_EMOJI[slotKey]} ${escapeHtml(t('slot_'+slotKey))}` : `${CATEGORY_EMOJI[s.poi.category]||'📍'} ${escapeHtml(t('cat_'+s.poi.category))}`;
     const canSwap = s.candidates && s.candidates.length > 1;
+    const igLink = placeInstagram(s.poi.tags);
     html += `<div class="stop">
-      <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${SLOT_EMOJI[slotKey]} ${escapeHtml(t('slot_'+slotKey))}</div>
+      <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${timeLabel}</div>
       <h3>${escapeHtml(name)}</h3>
       <div class="cat">${escapeHtml(t('cat_'+s.poi.category))}</div>
       ${addr?`<div class="addr">${escapeHtml(addr)}</div>`:''}
       <div class="stop-actions">
         <a class="maplink" target="_blank" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
+        ${igLink ? `<a class="maplink" target="_blank" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
         ${canSwap ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
       </div>
     </div>`;
@@ -1118,6 +1430,7 @@ function render(){
   $('result').style.display = 'block';
   $('share-btn').addEventListener('click', onShareClick);
   $('again-btn').addEventListener('click', planAgain);
+  if(moodOptions){ $('back-to-options').addEventListener('click', renderMoodOptions); }
 
   try{ renderMap(center, stops, routeGeometry); }catch(e){ console.warn('Map render failed:', e.message); }
 }
@@ -1142,7 +1455,6 @@ applyI18n();
   }
   if(params.has('group')) $('group').value = params.get('group');
   if(params.has('budget')) $('budget').value = params.get('budget');
-  clearMoodSelection();
   openAdvanced();
   planDay();
 })();
