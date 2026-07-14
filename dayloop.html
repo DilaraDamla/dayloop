@@ -93,7 +93,7 @@
     padding:12px 0 0; text-decoration:underline; text-underline-offset:3px;
   }
   .manual-link:disabled{opacity:0.5;cursor:not-allowed;}
-  #error{display:none;background:rgba(var(--danger-rgb),0.08);border:1px solid rgba(var(--danger-rgb),0.4);color:var(--danger-ink);padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
+  #error, #auth-error{display:none;background:rgba(var(--danger-rgb),0.08);border:1px solid rgba(var(--danger-rgb),0.4);color:var(--danger-ink);padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
   #status{display:none;color:var(--muted);font-size:0.9rem;text-align:center;padding:20px;}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:-2px;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -177,6 +177,7 @@
 <body>
 <div class="wrap">
   <div class="topbar">
+    <button id="auth-toggle" class="iconbtn" data-i18n="signin_btn">👤 Sign in</button>
     <button id="history-toggle" class="iconbtn" data-i18n="history_btn">🕘 Saved plans</button>
     <button id="lang-toggle" class="iconbtn">TR</button>
   </div>
@@ -289,6 +290,36 @@
   <button id="history-clear" class="again" data-i18n="history_clear">Clear all</button>
 </div>
 
+<div id="auth-overlay" class="overlay"></div>
+<div id="auth-panel" class="panel">
+  <div class="panel-head">
+    <h2 data-i18n="signin_title">Sign in</h2>
+    <button id="auth-close" class="iconbtn">✕</button>
+  </div>
+  <div id="auth-signed-out">
+    <p class="mood-hint" data-i18n="signin_hint">Sign in to keep your saved plans across devices.</p>
+    <div class="row"><div>
+      <label data-i18n="email_label">Email</label>
+      <input type="text" id="auth-email" autocomplete="email">
+    </div></div>
+    <div class="row"><div>
+      <label data-i18n="password_label">Password</label>
+      <input type="password" id="auth-password" autocomplete="current-password">
+    </div></div>
+    <div id="auth-error"></div>
+    <button class="submit" id="auth-signin-btn" data-i18n="signin_action">Sign in</button>
+    <button class="again" id="auth-signup-btn" style="width:100%;margin-top:8px;" data-i18n="signup_action">Create account</button>
+    <button class="again" id="auth-google-btn" style="width:100%;margin-top:8px;" data-i18n="google_action">Sign in with Google</button>
+  </div>
+  <div id="auth-signed-in" style="display:none;">
+    <p style="margin-bottom:16px;" id="auth-user-email"></p>
+    <button class="again" id="auth-signout-btn" style="width:100%;" data-i18n="signout_action">Sign out</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ---------- i18n ----------
@@ -348,6 +379,10 @@ const STRINGS = {
     manual_build_btn:"Build this plan", browse_label:"Places near you", filter_all:"All",
     add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
     events_link:"🎟️ Get tickets & see events →",
+    signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
+    email_label:"Email", password_label:"Password",
+    signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
+    signed_in_label:"Account", signout_action:"Sign out",
     lang_toggle:"TR",
   },
   tr:{
@@ -404,6 +439,10 @@ const STRINGS = {
     manual_build_btn:"Bu planı oluştur", browse_label:"Yakındaki yerler", filter_all:"Tümü",
     add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
+    signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
+    email_label:"E-posta", password_label:"Şifre",
+    signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
+    signed_in_label:"Hesap", signout_action:"Çıkış yap",
     lang_toggle:"EN",
   },
 };
@@ -1291,6 +1330,10 @@ function saveToHistory(plan){
     };
     list.unshift(entry);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0,20)));
+    if(fbUser && fbDb){
+      fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(entry.id)).set(entry)
+        .catch(e=>console.warn('Cloud save failed:', e.message));
+    }
   }catch(e){ console.warn('Could not save history:', e.message); }
 }
 function renderHistoryPanel(){
@@ -1334,6 +1377,88 @@ $('history-close').addEventListener('click', closeHistoryPanel);
 $('history-overlay').addEventListener('click', closeHistoryPanel);
 $('history-clear').addEventListener('click', ()=>{ if(confirm(t('history_clear_confirm'))) clearHistoryAll(); });
 $('lang-toggle').addEventListener('click', ()=>{ LANG = LANG==='tr' ? 'en' : 'tr'; applyI18n(); });
+
+// ---------- account (optional, requires a Firebase project) ----------
+// Everything above works with zero setup, saving plans only to this browser's
+// localStorage. To add real accounts and cross-device sync: create a free project at
+// https://console.firebase.google.com, enable Email/Password (and optionally Google) under
+// Authentication > Sign-in method, create a Firestore database, then paste your project's
+// config below. Until a real config is pasted in, the sign-in button stays hidden and
+// nothing about the rest of the app changes.
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID",
+};
+let fbAuth = null, fbDb = null, fbUser = null;
+
+function onAuthStateChangedUI(user){
+  fbUser = user;
+  if(user){
+    $('auth-toggle').textContent = '👤 ' + (user.email ? user.email.split('@')[0] : t('signed_in_label'));
+    $('auth-signed-out').style.display = 'none';
+    $('auth-signed-in').style.display = 'block';
+    $('auth-user-email').textContent = user.email || '';
+    syncCloudHistory();
+  } else {
+    $('auth-toggle').textContent = t('signin_btn');
+    $('auth-signed-out').style.display = 'block';
+    $('auth-signed-in').style.display = 'none';
+  }
+}
+function showAuthError(msg){ const el=$('auth-error'); el.textContent = msg; el.style.display='block'; }
+function clearAuthError(){ $('auth-error').style.display='none'; }
+function openAuthPanel(){ $('auth-overlay').classList.add('open'); $('auth-panel').classList.add('open'); }
+function closeAuthPanel(){ $('auth-overlay').classList.remove('open'); $('auth-panel').classList.remove('open'); }
+async function syncCloudHistory(){
+  if(!fbUser || !fbDb) return;
+  try{
+    const snap = await fbDb.collection('users').doc(fbUser.uid).collection('plans').orderBy('id','desc').limit(20).get();
+    const cloudEntries = snap.docs.map(d=>d.data());
+    const merged = [...cloudEntries, ...loadHistoryList()]
+      .filter((e,i,arr)=>arr.findIndex(x=>x.id===e.id)===i)
+      .sort((a,b)=>b.id-a.id).slice(0,20);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
+    renderHistoryPanel();
+  }catch(e){ console.warn('Cloud sync failed:', e.message); }
+}
+
+if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeof firebase !== 'undefined'){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    fbAuth = firebase.auth();
+    fbDb = firebase.firestore();
+    fbAuth.onAuthStateChanged(onAuthStateChangedUI);
+
+    $('auth-toggle').addEventListener('click', ()=>{ clearAuthError(); openAuthPanel(); });
+    $('auth-close').addEventListener('click', closeAuthPanel);
+    $('auth-overlay').addEventListener('click', closeAuthPanel);
+    $('auth-signin-btn').addEventListener('click', async ()=>{
+      clearAuthError();
+      try{ await fbAuth.signInWithEmailAndPassword($('auth-email').value.trim(), $('auth-password').value); closeAuthPanel(); }
+      catch(e){ showAuthError(e.message); }
+    });
+    $('auth-signup-btn').addEventListener('click', async ()=>{
+      clearAuthError();
+      try{ await fbAuth.createUserWithEmailAndPassword($('auth-email').value.trim(), $('auth-password').value); closeAuthPanel(); }
+      catch(e){ showAuthError(e.message); }
+    });
+    $('auth-google-btn').addEventListener('click', async ()=>{
+      clearAuthError();
+      try{ await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); closeAuthPanel(); }
+      catch(e){ showAuthError(e.message); }
+    });
+    $('auth-signout-btn').addEventListener('click', async ()=>{ await fbAuth.signOut(); closeHistoryPanel(); });
+  }catch(e){
+    console.warn('Firebase init failed:', e.message);
+    $('auth-toggle').style.display = 'none';
+  }
+} else {
+  $('auth-toggle').style.display = 'none';
+}
 
 // ---------- map ----------
 // Leaflet's vector layers are drawn via SVG/Canvas, which can't reliably read CSS
