@@ -699,7 +699,7 @@ function buildEventsSearchURL(center){
 // activate: sign up at https://developer.ticketmaster.com, create an app, paste the
 // "Consumer Key" below. Until a real key is pasted in, every "events" surface on the page
 // quietly falls back to the search-link approach instead of showing an empty promise.
-const TICKETMASTER_API_KEY = "PASTE_YOUR_TICKETMASTER_API_KEY";
+const TICKETMASTER_API_KEY = "Gy41ManUA3CSbEwLc1BcykqG0F8btVGo";
 function ticketmasterConfigured(){
   return TICKETMASTER_API_KEY && !TICKETMASTER_API_KEY.startsWith('PASTE_');
 }
@@ -726,6 +726,17 @@ function formatEventDate(dateStr, timeStr){
   if(timeStr) out += ' · ' + d.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit' });
   return out;
 }
+// The Discovery API's per-event url often points straight at the actual selling site
+// (e.g. biletix.com in Turkey) rather than ticketmaster.com — showing that real domain
+// is more honest than a blanket "Ticketmaster" label, since that's where checkout happens.
+function eventSourceLabel(url){
+  try{
+    const host = new URL(url).hostname.replace(/^www\./,'').replace(/^m\./,'');
+    if(host.includes('biletix')) return 'Biletix';
+    if(host.includes('ticketmaster')) return 'Ticketmaster';
+    return host.split('.').slice(0,-1).join('.') || host;
+  }catch(e){ return 'Ticketmaster'; }
+}
 function renderEventCard(ev){
   const name = ev.name || '';
   const dateLabel = formatEventDate(ev.dates?.start?.localDate, ev.dates?.start?.localTime);
@@ -733,6 +744,7 @@ function renderEventCard(ev){
   const image = (ev.images||[]).find(i=>i.width>=300 && i.width<=700)?.url || ev.images?.[0]?.url;
   const price = ev.priceRanges?.[0];
   const priceLabel = price ? (price.min===0 ? t('event_free') : `${Math.round(price.min)}–${Math.round(price.max)} ${price.currency||''}`) : '';
+  const source = eventSourceLabel(ev.url);
   return `<div class="event-card">
     ${image ? `<img src="${escapeHtml(image)}" class="event-img" loading="lazy" alt="">` : ''}
     <div class="event-body">
@@ -740,7 +752,7 @@ function renderEventCard(ev){
       <div class="event-name">${escapeHtml(name)}</div>
       ${venue ? `<div class="event-venue">${escapeHtml(venue)}</div>` : ''}
       <div class="event-foot">
-        <span class="event-source">Ticketmaster${priceLabel?' · '+escapeHtml(priceLabel):''}</span>
+        <span class="event-source">${escapeHtml(source)}${priceLabel?' · '+escapeHtml(priceLabel):''}</span>
         <a href="${escapeHtml(ev.url)}" target="_blank" class="event-ticket-btn">${escapeHtml(t('get_ticket'))}</a>
       </div>
     </div>
