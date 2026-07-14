@@ -208,6 +208,18 @@
   .fab:active{transform:scale(0.95);}
   @media (prefers-reduced-motion: reduce){ .fab:hover,.fab:active{transform:none;} }
 
+  .events-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:2px;}
+  .event-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
+  .event-img{width:100%;height:110px;object-fit:cover;background:var(--panel);display:block;}
+  .event-body{padding:12px;display:flex;flex-direction:column;gap:4px;flex:1;}
+  .event-date{color:var(--accent2);font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;}
+  .event-name{font-weight:700;font-size:0.9rem;line-height:1.32;}
+  .event-venue{color:var(--muted);font-size:0.78rem;}
+  .event-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;gap:8px;flex-wrap:wrap;}
+  .event-source{color:var(--muted);font-size:0.7rem;}
+  .event-ticket-btn{background:var(--accent);color:var(--accent-contrast);border:none;border-radius:8px;padding:7px 12px;font-size:0.78rem;font-weight:700;text-decoration:none;white-space:nowrap;}
+  @media (max-width:640px){ .events-strip{grid-template-columns:1fr;} }
+
   /* ---------- mobile ---------- */
   .map-tap-hint{
     position:absolute; inset:0; background:rgba(0,0,0,0.35); color:#fff; display:flex;
@@ -307,6 +319,11 @@
 
     <button class="submit" id="go" data-i18n="go_btn">Plan my day</button>
     <button type="button" class="manual-link" id="manual-btn" data-i18n="manual_btn">🖐️ Or pick the places yourself →</button>
+  </div>
+
+  <div class="card" id="events-section" style="display:none;">
+    <label data-i18n="upcoming_events_label">🎉 Upcoming events near you</label>
+    <div id="events-strip"></div>
   </div>
 
   <div id="error"></div>
@@ -456,6 +473,9 @@ const STRINGS = {
     popular_title:"Popular nearby", popular_empty:"Search a location first — popular places will show up here once you do.",
     popular_places_note:"These are the most detailed listings in the map data near your last search — not a verified popularity ranking, since that data isn't freely available.",
     open_maps_short:"View on map",
+    upcoming_events_label:"🎉 Upcoming events near you", events_loading:"Loading events…",
+    events_none_found:"No upcoming events found nearby.", get_ticket:"Get ticket", event_free:"Free",
+    events_fallback_note:"Real listings need a Ticketmaster API key — this opens a search for tickets and free events near you instead.",
     map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
     name_label:"Name", name_placeholder:"e.g. Dilara",
@@ -534,6 +554,9 @@ const STRINGS = {
     popular_title:"Yakında popüler", popular_empty:"Önce bir konum ara — popüler yerler burada görünecek.",
     popular_places_note:"Bunlar son aradığın konuma yakın, harita verisinde en detaylı bilgiye sahip yerler — gerçek bir popülerlik verisi ücretsiz kaynaklarda yok, bu yüzden kesin bir sıralama değil.",
     open_maps_short:"Haritada gör",
+    upcoming_events_label:"🎉 Yakındaki yaklaşan etkinlikler", events_loading:"Etkinlikler yükleniyor…",
+    events_none_found:"Yakında yaklaşan bir etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
+    events_fallback_note:"Gerçek etkinlik listesi için Ticketmaster API anahtarı gerekiyor — bunun yerine yakınındaki bilet ve ücretsiz etkinlikler için arama açılıyor.",
     map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
     name_label:"İsim", name_placeholder:"örn. Dilara",
@@ -667,6 +690,78 @@ function buildEventsSearchURL(center){
   const isTurkey = /turkey/i.test(center.label || '');
   const q = isTurkey ? `Biletix ${cityQuery} etkinlikler bilet` : `events near ${cityQuery} tickets Ticketmaster Eventbrite`;
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+}
+
+// ---------- real events (optional, requires a free Ticketmaster Discovery API key) ----------
+// Biletix has no public API to integrate against honestly. Ticketmaster's Discovery API is
+// free (5000 calls/day, no card required) and does cover Turkey, so real listings — name,
+// date, venue, price, and a genuine per-event ticket-purchase URL — come from there. To
+// activate: sign up at https://developer.ticketmaster.com, create an app, paste the
+// "Consumer Key" below. Until a real key is pasted in, every "events" surface on the page
+// quietly falls back to the search-link approach instead of showing an empty promise.
+const TICKETMASTER_API_KEY = "PASTE_YOUR_TICKETMASTER_API_KEY";
+function ticketmasterConfigured(){
+  return TICKETMASTER_API_KEY && !TICKETMASTER_API_KEY.startsWith('PASTE_');
+}
+// Returns null on "can't get real events" (not configured, network error, CORS block, bad
+// response) so callers can fall back to the search link; returns [] for "asked, got zero".
+async function fetchNearbyEvents(lat, lon, size){
+  if(!ticketmasterConfigured()) return null;
+  const url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&latlong=${lat},${lon}&radius=50&unit=km&sort=date,asc&size=${size||9}`;
+  try{
+    const res = await fetchWithTimeout(url, {}, 8000);
+    if(!res.ok) return null;
+    const data = await res.json();
+    return (data._embedded && data._embedded.events) || [];
+  }catch(e){
+    console.warn('Ticketmaster fetch failed (network or CORS) — falling back to search link:', e.message);
+    return null;
+  }
+}
+function formatEventDate(dateStr, timeStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr + 'T' + (timeStr || '00:00:00'));
+  const locale = LANG==='tr' ? 'tr-TR' : 'en-US';
+  let out = d.toLocaleDateString(locale, { day:'numeric', month:'short' });
+  if(timeStr) out += ' · ' + d.toLocaleTimeString(locale, { hour:'2-digit', minute:'2-digit' });
+  return out;
+}
+function renderEventCard(ev){
+  const name = ev.name || '';
+  const dateLabel = formatEventDate(ev.dates?.start?.localDate, ev.dates?.start?.localTime);
+  const venue = ev._embedded?.venues?.[0]?.name || '';
+  const image = (ev.images||[]).find(i=>i.width>=300 && i.width<=700)?.url || ev.images?.[0]?.url;
+  const price = ev.priceRanges?.[0];
+  const priceLabel = price ? (price.min===0 ? t('event_free') : `${Math.round(price.min)}–${Math.round(price.max)} ${price.currency||''}`) : '';
+  return `<div class="event-card">
+    ${image ? `<img src="${escapeHtml(image)}" class="event-img" loading="lazy" alt="">` : ''}
+    <div class="event-body">
+      <div class="event-date">${escapeHtml(dateLabel)}</div>
+      <div class="event-name">${escapeHtml(name)}</div>
+      ${venue ? `<div class="event-venue">${escapeHtml(venue)}</div>` : ''}
+      <div class="event-foot">
+        <span class="event-source">Ticketmaster${priceLabel?' · '+escapeHtml(priceLabel):''}</span>
+        <a href="${escapeHtml(ev.url)}" target="_blank" class="event-ticket-btn">${escapeHtml(t('get_ticket'))}</a>
+      </div>
+    </div>
+  </div>`;
+}
+function renderEventsFallback(container, center){
+  container.innerHTML = `<div class="note">${escapeHtml(t('events_fallback_note'))}</div>
+    <a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+}
+async function renderEventsSection(center){
+  if(!ticketmasterConfigured()) return;
+  const section = $('events-section'), strip = $('events-strip');
+  section.style.display = 'block';
+  strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
+  const events = await fetchNearbyEvents(center.lat, center.lon, 3);
+  if(events === null){ renderEventsFallback(strip, center); return; }
+  if(!events.length){
+    strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
+    return;
+  }
+  strip.innerHTML = `<div class="events-strip">${events.slice(0,3).map(renderEventCard).join('')}</div>`;
 }
 
 // ---------- opening_hours heuristic ----------
@@ -1038,6 +1133,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   } else {
     center = await geocodeCity(cityInput);
   }
+  renderEventsSection(center); // fire-and-forget — populates independently of the rest of the plan
 
   setStatus(t('status_weather'));
   const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
@@ -1214,8 +1310,12 @@ function renderManualBuilder(){
     <div class="chip ${manualFilter==='events'?'active':''}" data-cat="events">🎟️ ${escapeHtml(t('filter_events'))}</div>
   </div>`;
   if(manualFilter==='events'){
-    html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
-    html += `<a href="${buildEventsSearchURL(manualContext.center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
+    if(ticketmasterConfigured()){
+      html += `<div id="manual-events-slot"><p class="mood-hint">${escapeHtml(t('events_loading'))}</p></div>`;
+    } else {
+      html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
+      html += `<a href="${buildEventsSearchURL(manualContext.center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
+    }
   } else {
     const filtered = pois.filter(p=> manualFilter==='all' || p.category===manualFilter);
     html += `<div class="browse-list">`;
@@ -1246,6 +1346,16 @@ function renderManualBuilder(){
   document.querySelectorAll('#manual-filter-chips .chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{ manualFilter = chip.dataset.cat; renderManualBuilder(); });
   });
+  if(manualFilter==='events' && ticketmasterConfigured()){
+    const { center } = manualContext;
+    fetchNearbyEvents(center.lat, center.lon, 6).then(events=>{
+      const slot = $('manual-events-slot');
+      if(!slot) return; // user switched tabs before this resolved
+      if(events && events.length) slot.innerHTML = `<div class="events-strip" style="grid-template-columns:repeat(2,1fr);">${events.map(renderEventCard).join('')}</div>`;
+      else if(events && !events.length) slot.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
+      else renderEventsFallback(slot, center);
+    });
+  }
 }
 function addManualStop(idx){
   const poi = manualContext.pois[idx];
@@ -1422,7 +1532,7 @@ $('lang-toggle').addEventListener('click', ()=>{ LANG = LANG==='tr' ? 'en' : 'tr
 // "Popular" here is a proxy — OSM places with the richest tag data from the last
 // search — not a verified popularity signal, since that data isn't freely available.
 // The panel says so explicitly rather than implying real ranking data.
-function renderPopularPanel(){
+async function renderPopularPanel(){
   const el = $('popular-body');
   if(!lastPOIContext || !lastPOIContext.pois.length){
     el.innerHTML = `<p class="mood-hint">${escapeHtml(t('popular_empty'))}</p>
@@ -1442,9 +1552,19 @@ function renderPopularPanel(){
       <a class="swapbtn" target="_blank" href="${mapLink(p.lat,p.lon)}">${escapeHtml(t('open_maps_short'))}</a>
     </div>`;
   }).join('');
-  html += `<div class="divider-row"><span>${escapeHtml(t('or_divider'))}</span></div>`;
-  html += `<a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+  html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
+  html += `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
   el.innerHTML = html;
+  const events = ticketmasterConfigured() ? await fetchNearbyEvents(center.lat, center.lon, 3) : null;
+  const eventsSlot = document.createElement('div');
+  if(events && events.length){
+    eventsSlot.innerHTML = `<div class="events-strip" style="grid-template-columns:1fr;">${events.map(renderEventCard).join('')}</div>`;
+  } else if(events && !events.length){
+    eventsSlot.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
+  } else {
+    renderEventsFallback(eventsSlot, center);
+  }
+  el.lastElementChild.replaceWith(eventsSlot);
 }
 function openPopularPanel(){ $('popular-overlay').classList.add('open'); $('popular-panel').classList.add('open'); refreshPanelLock(); }
 function closePopularPanel(){ $('popular-overlay').classList.remove('open'); $('popular-panel').classList.remove('open'); refreshPanelLock(); }
