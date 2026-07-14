@@ -2,36 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DayLoop — plan your day, anywhere</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   :root{
-    --bg:#eef0ee; --panel:#ffffff; --panel2:#e4e7e2; --border:#c7cdc5;
-    --text:#181c1a; --muted:#4b524d; --accent:#a9762f; --accent-rgb:169,118,47;
-    --accent2:#3f7a63; --accent2-rgb:63,122,99; --accent-contrast:#fbf6ee;
-    --danger:#b3261e; --danger-rgb:179,38,30; --danger-ink:#8c1d17;
-    --radius:16px;
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#eef0f4; --muted:#9aa3b2; --accent:#ff6b6b; --accent-rgb:255,107,107;
+    --accent2:#4ecdc4; --accent2-rgb:78,205,196; --accent-contrast:#1a0d0d;
+    --danger:#ff6b6b; --danger-rgb:255,107,107; --danger-ink:#ffb3b3;
+    --radius:14px;
     --font-display:"Iowan Old Style","Palatino Linotype","URW Palladio L",Palatino,Georgia,serif;
     --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#12140f; --panel:#1c1f18; --panel2:#22261d; --border:#33372c;
-      --text:#f1efe8; --muted:#b7bcad; --accent:#e0ac5c; --accent-rgb:224,172,92;
-      --accent2:#6fbd9c; --accent2-rgb:111,189,156; --accent-contrast:#20150a;
-      --danger:#ff8a80; --danger-rgb:255,138,128; --danger-ink:#ffb4ab;
-    }
-  }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
     background:
       radial-gradient(120% 60% at 82% -10%, rgba(var(--accent-rgb),0.10), transparent 60%),
       radial-gradient(140% 90% at 8% 110%, rgba(var(--accent2-rgb),0.08), transparent 55%),
       var(--bg);
-    color:var(--text); min-height:100vh; padding:32px 16px 80px; position:relative; overflow-x:hidden;
+    color:var(--text); min-height:100vh; position:relative; overflow-x:hidden;
+    padding:32px 16px calc(80px + env(safe-area-inset-bottom));
+    padding-left:calc(16px + env(safe-area-inset-left));
+    padding-right:calc(16px + env(safe-area-inset-right));
   }
+  body.panel-open{overflow:hidden;}
   .wrap{max-width:720px;margin:0 auto; position:relative; z-index:1;}
   .topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
   .iconbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:10px;font-size:0.8rem;cursor:pointer;}
@@ -86,8 +83,13 @@
   .submit{
     width:100%; padding:14px; border:none; border-radius:12px; font-size:1rem; font-weight:700;
     background:var(--accent); color:var(--accent-contrast); cursor:pointer; margin-top:6px;
+    transition:transform .1s;
   }
   .submit:disabled{opacity:0.5;cursor:not-allowed;}
+  .submit:active:not(:disabled),.chip:active,.mood:active,.iconbtn:active,.again:active,.google-btn:active{transform:scale(0.97);}
+  @media (prefers-reduced-motion: reduce){
+    .submit:active:not(:disabled),.chip:active,.mood:active,.iconbtn:active,.again:active,.google-btn:active{transform:none;}
+  }
   .manual-link{
     width:100%; background:none; border:none; color:var(--accent2); font-size:0.85rem; cursor:pointer;
     padding:12px 0 0; text-decoration:underline; text-underline-offset:3px;
@@ -133,7 +135,11 @@
   .toast.show{opacity:1;transform:translate(-50%,0);}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.2s;z-index:100;}
   .overlay.open{opacity:1;pointer-events:auto;}
-  .panel{position:fixed;top:0;right:0;height:100%;width:min(380px,90vw);background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:.25s;z-index:101;padding:20px;overflow-y:auto;}
+  .panel{
+    position:fixed;top:0;right:0;height:100%;width:min(380px,90vw);background:var(--panel);
+    border-left:1px solid var(--border);transform:translateX(100%);transition:.25s;z-index:101;
+    overflow-y:auto; padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) 20px;
+  }
   .panel.open{transform:translateX(0);}
   .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
   .panel-head h2{font-size:1.1rem;margin:0;font-family:var(--font-display);}
@@ -343,6 +349,10 @@
   </div>
   <div id="auth-signed-out">
     <p class="mood-hint" id="auth-hint" data-i18n="signin_hint">Sign in to keep your saved plans across devices.</p>
+    <div class="row" id="auth-name-row" style="display:none;"><div>
+      <label data-i18n="name_label">Name</label>
+      <input type="text" id="auth-name" autocomplete="name" data-i18n-placeholder="name_placeholder" placeholder="e.g. Dilara">
+    </div></div>
     <div class="row"><div>
       <label data-i18n="email_label">Email</label>
       <input type="email" id="auth-email" autocomplete="email">
@@ -370,7 +380,7 @@
       <div class="avatar-circle" id="auth-avatar">?</div>
       <div>
         <div class="account-name" id="auth-user-email"></div>
-        <div class="account-sub" data-i18n="signed_in_label">Account</div>
+        <div class="account-sub" id="auth-user-sub" data-i18n="signed_in_label">Account</div>
       </div>
     </div>
     <button class="again" id="auth-signout-btn" style="width:100%;margin-top:22px;" data-i18n="signout_action">Sign out</button>
@@ -443,6 +453,7 @@ const STRINGS = {
     events_link:"🎟️ Get tickets & see events →",
     map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
+    name_label:"Name", name_placeholder:"e.g. Dilara",
     email_label:"Email", password_label:"Password",
     signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
     signed_in_label:"Account", signout_action:"Sign out",
@@ -516,6 +527,7 @@ const STRINGS = {
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
     map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
+    name_label:"İsim", name_placeholder:"örn. Dilara",
     email_label:"E-posta", password_label:"Şifre",
     signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
     signed_in_label:"Hesap", signout_action:"Çıkış yap",
@@ -1457,8 +1469,12 @@ function clearHistoryAll(){
   localStorage.removeItem(HISTORY_KEY);
   renderHistoryPanel();
 }
-function openHistoryPanel(){ $('history-overlay').classList.add('open'); $('history-panel').classList.add('open'); }
-function closeHistoryPanel(){ $('history-overlay').classList.remove('open'); $('history-panel').classList.remove('open'); }
+function refreshPanelLock(){
+  const anyOpen = $('history-panel').classList.contains('open') || $('auth-panel').classList.contains('open');
+  document.body.classList.toggle('panel-open', anyOpen);
+}
+function openHistoryPanel(){ $('history-overlay').classList.add('open'); $('history-panel').classList.add('open'); refreshPanelLock(); }
+function closeHistoryPanel(){ $('history-overlay').classList.remove('open'); $('history-panel').classList.remove('open'); refreshPanelLock(); }
 
 $('history-toggle').addEventListener('click', ()=>{ renderHistoryPanel(); openHistoryPanel(); });
 $('history-close').addEventListener('click', closeHistoryPanel);
@@ -1486,11 +1502,13 @@ let fbAuth = null, fbDb = null, fbUser = null;
 function onAuthStateChangedUI(user){
   fbUser = user;
   if(user){
-    $('auth-toggle').textContent = '👤 ' + (user.email ? user.email.split('@')[0] : t('signed_in_label'));
+    const displayName = user.displayName || (user.email ? user.email.split('@')[0] : '');
+    $('auth-toggle').textContent = '👤 ' + (displayName || t('signed_in_label'));
     $('auth-signed-out').style.display = 'none';
     $('auth-signed-in').style.display = 'block';
-    $('auth-user-email').textContent = user.email || '';
-    $('auth-avatar').textContent = (user.email || '?').charAt(0).toUpperCase();
+    $('auth-user-email').textContent = user.displayName || user.email || '';
+    $('auth-user-sub').textContent = user.displayName ? (user.email || '') : t('signed_in_label');
+    $('auth-avatar').textContent = (displayName || '?').charAt(0).toUpperCase();
     syncCloudHistory();
   } else {
     $('auth-toggle').textContent = t('signin_btn');
@@ -1503,6 +1521,7 @@ function updateAuthModeUI(){
   $('auth-primary-btn').textContent = authMode==='signin' ? t('signin_action') : t('signup_action');
   $('auth-mode-toggle').textContent = authMode==='signin' ? t('signup_prompt') : t('signin_prompt');
   $('auth-hint').textContent = authMode==='signin' ? t('signin_hint') : t('signup_hint');
+  $('auth-name-row').style.display = authMode==='signup' ? 'flex' : 'none';
 }
 const AUTH_ERROR_KEYS = {
   'auth/invalid-email': 'autherr_invalid_email',
@@ -1524,8 +1543,8 @@ function translateAuthError(e){
 }
 function showAuthError(msg){ const el=$('auth-error'); el.textContent = msg; el.style.display='block'; }
 function clearAuthError(){ $('auth-error').style.display='none'; }
-function openAuthPanel(){ $('auth-overlay').classList.add('open'); $('auth-panel').classList.add('open'); }
-function closeAuthPanel(){ $('auth-overlay').classList.remove('open'); $('auth-panel').classList.remove('open'); }
+function openAuthPanel(){ $('auth-overlay').classList.add('open'); $('auth-panel').classList.add('open'); refreshPanelLock(); }
+function closeAuthPanel(){ $('auth-overlay').classList.remove('open'); $('auth-panel').classList.remove('open'); refreshPanelLock(); }
 async function syncCloudHistory(){
   if(!fbUser || !fbDb) return;
   try{
@@ -1559,8 +1578,14 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
       const email = $('auth-email').value.trim(), pass = $('auth-password').value;
       if(!email || !pass){ showAuthError(t('autherr_missing_fields')); return; }
       try{
-        if(authMode==='signin') await fbAuth.signInWithEmailAndPassword(email, pass);
-        else await fbAuth.createUserWithEmailAndPassword(email, pass);
+        if(authMode==='signin'){
+          await fbAuth.signInWithEmailAndPassword(email, pass);
+        } else {
+          const cred = await fbAuth.createUserWithEmailAndPassword(email, pass);
+          const name = $('auth-name').value.trim();
+          if(name) await cred.user.updateProfile({ displayName: name });
+          onAuthStateChangedUI(fbAuth.currentUser);
+        }
         closeAuthPanel();
       }catch(e){ showAuthError(translateAuthError(e)); }
     });
@@ -1584,7 +1609,7 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
 // the current color-scheme instead of referencing var(--accent).
 let leafletMap = null;
 function currentAccentHex(){
-  return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? '#e0ac5c' : '#a9762f';
+  return '#ff6b6b';
 }
 function renderMap(center, stops, geometry){
   const el = $('mapview');
