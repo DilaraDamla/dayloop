@@ -7,23 +7,39 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   :root{
-    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
-    --text:#eef0f4; --muted:#9aa3b2; --accent:#ff6b6b; --accent2:#4ecdc4;
-    --warn:#ffb84d; --radius:14px;
+    --bg:#eef0ee; --panel:#ffffff; --panel2:#e4e7e2; --border:#c7cdc5;
+    --text:#181c1a; --muted:#4b524d; --accent:#a9762f; --accent-rgb:169,118,47;
+    --accent2:#3f7a63; --accent2-rgb:63,122,99; --accent-contrast:#fbf6ee;
+    --danger:#b3261e; --danger-rgb:179,38,30; --danger-ink:#8c1d17;
+    --radius:16px;
+    --font-display:"Iowan Old Style","Palatino Linotype","URW Palladio L",Palatino,Georgia,serif;
+    --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#12140f; --panel:#1c1f18; --panel2:#22261d; --border:#33372c;
+      --text:#f1efe8; --muted:#b7bcad; --accent:#e0ac5c; --accent-rgb:224,172,92;
+      --accent2:#6fbd9c; --accent2-rgb:111,189,156; --accent-contrast:#20150a;
+      --danger:#ff8a80; --danger-rgb:255,138,128; --danger-ink:#ffb4ab;
+    }
   }
   *{box-sizing:border-box;}
   body{
     margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-    background:linear-gradient(160deg,#0f1115,#151822 60%,#171a21);
-    color:var(--text); min-height:100vh; padding:32px 16px 80px;
+    background:
+      radial-gradient(120% 60% at 82% -10%, rgba(var(--accent-rgb),0.10), transparent 60%),
+      radial-gradient(140% 90% at 8% 110%, rgba(var(--accent2-rgb),0.08), transparent 55%),
+      var(--bg);
+    color:var(--text); min-height:100vh; padding:32px 16px 80px; position:relative; overflow-x:hidden;
   }
-  .wrap{max-width:720px;margin:0 auto;}
+  .wrap{max-width:720px;margin:0 auto; position:relative; z-index:1;}
   .topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
   .iconbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:10px;font-size:0.8rem;cursor:pointer;}
   .iconbtn:hover{border-color:var(--accent2);color:var(--text);}
   header{text-align:center;margin-bottom:28px;}
+  .eyebrow{font-family:var(--font-mono);font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px;}
   header h1{
-    font-size:2.2rem;margin:0 0 6px;
+    font-family:var(--font-display); font-weight:600; font-size:2.3rem;margin:0 0 6px;
     background:linear-gradient(90deg,var(--accent),var(--accent2));
     -webkit-background-clip:text;background-clip:text;color:transparent;
     letter-spacing:-0.5px;
@@ -31,7 +47,7 @@
   header p{color:var(--muted);margin:0;font-size:0.95rem;}
   .card{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:20px; margin-bottom:16px;
+    padding:20px; margin-bottom:16px; box-shadow:0 24px 48px -32px rgba(0,0,0,0.25);
   }
   label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
   .row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
@@ -51,13 +67,28 @@
     padding:9px 14px; border-radius:999px; border:1px solid var(--border); background:var(--panel2);
     color:var(--muted); cursor:pointer; font-size:0.85rem; user-select:none; transition:.15s;
   }
-  .chip.active{border-color:var(--accent); color:var(--text); background:rgba(255,107,107,0.12);}
+  .chip.active{border-color:var(--accent); color:var(--text); background:rgba(var(--accent-rgb),0.14);}
+  .moods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:2px;}
+  .mood{
+    text-align:left; border:1px solid var(--border); background:var(--panel2); border-radius:14px;
+    padding:14px; cursor:pointer; color:var(--text); font-family:inherit; transition:.15s;
+  }
+  .mood:hover{border-color:var(--accent);}
+  .mood.active{border-color:var(--accent); background:rgba(var(--accent-rgb),0.12);}
+  .mood .glyph{font-family:var(--font-display); font-size:1.15rem; display:block; margin-bottom:6px; color:var(--accent);}
+  .mood .name{display:block; font-weight:700; font-size:0.92rem; margin-bottom:2px;}
+  .mood .desc{display:block; font-size:0.78rem; color:var(--muted); line-height:1.4;}
+  .customize-toggle{
+    background:none; border:none; color:var(--accent2); font-size:0.82rem; cursor:pointer; padding:12px 2px 0;
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .advanced{margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);}
   .submit{
     width:100%; padding:14px; border:none; border-radius:12px; font-size:1rem; font-weight:700;
-    background:linear-gradient(90deg,var(--accent),#ff8e8e); color:#1a0d0d; cursor:pointer; margin-top:6px;
+    background:var(--accent); color:var(--accent-contrast); cursor:pointer; margin-top:6px;
   }
   .submit:disabled{opacity:0.5;cursor:not-allowed;}
-  #error{display:none;background:rgba(255,107,107,0.1);border:1px solid var(--accent);color:#ffb3b3;padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
+  #error{display:none;background:rgba(var(--danger-rgb),0.08);border:1px solid rgba(var(--danger-rgb),0.4);color:var(--danger-ink);padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
   #status{display:none;color:var(--muted);font-size:0.9rem;text-align:center;padding:20px;}
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:-2px;}
   @keyframes spin{to{transform:rotate(360deg);}}
@@ -69,13 +100,13 @@
   .summary{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;color:var(--muted);font-size:0.85rem;}
   .summary span{background:var(--panel2);border:1px solid var(--border);padding:6px 12px;border-radius:999px;}
   #mapview{height:300px;border-radius:var(--radius);margin-bottom:16px;border:1px solid var(--border);overflow:hidden;background:var(--panel2);}
-  .dl-pin{background:var(--accent);color:#1a0d0d;font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #0f1115;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .dl-pin{background:var(--accent);color:var(--accent-contrast);font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);}
   .stop{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
     padding:18px; margin-bottom:12px; position:relative;
   }
   .stop .time{color:var(--accent2); font-weight:700; font-size:0.85rem; letter-spacing:0.03em;}
-  .stop h3{margin:6px 0 4px; font-size:1.15rem;}
+  .stop h3{margin:6px 0 4px; font-size:1.15rem; font-family:var(--font-display);}
   .stop .cat{color:var(--muted); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;}
   .stop .addr{color:var(--muted); font-size:0.88rem; margin-top:6px;}
   .stop-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
@@ -85,7 +116,7 @@
   .swapbtn:hover{border-color:var(--accent2);color:var(--text);}
   .travel{text-align:center;color:var(--muted);font-size:0.8rem;margin:2px 0 12px;}
   .travel span{background:var(--panel2);padding:4px 10px;border-radius:999px;border:1px solid var(--border);}
-  .note{background:rgba(78,205,196,0.08);border:1px solid rgba(78,205,196,0.3);color:#bfeeea;padding:10px 14px;border-radius:10px;font-size:0.85rem;margin-bottom:16px;}
+  .note{background:rgba(var(--accent2-rgb),0.10);border:1px solid rgba(var(--accent2-rgb),0.35);color:var(--accent2);padding:10px 14px;border-radius:10px;font-size:0.85rem;margin-bottom:16px;}
   .share-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
   footer{margin-top:28px;text-align:center;color:var(--muted);font-size:0.75rem;line-height:1.6;}
   footer a{color:var(--muted);}
@@ -97,12 +128,13 @@
   .panel{position:fixed;top:0;right:0;height:100%;width:min(380px,90vw);background:var(--panel);border-left:1px solid var(--border);transform:translateX(100%);transition:.25s;z-index:101;padding:20px;overflow-y:auto;}
   .panel.open{transform:translateX(0);}
   .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
-  .panel-head h2{font-size:1.1rem;margin:0;}
+  .panel-head h2{font-size:1.1rem;margin:0;font-family:var(--font-display);}
   .history-item{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;}
   .history-item .hi-top{display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted);margin-bottom:6px;}
   .history-item .hi-title{font-weight:700;margin-bottom:8px;}
   .history-item .hi-actions{display:flex;gap:8px;}
   .history-item button{background:none;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:0.78rem;cursor:pointer;}
+  @media (max-width:480px){ .moods{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
@@ -112,11 +144,12 @@
     <button id="lang-toggle" class="iconbtn">TR</button>
   </div>
   <header>
+    <div class="eyebrow" data-i18n="eyebrow">Free time on your hands?</div>
     <h1>DayLoop</h1>
     <p data-i18n="subtitle">Tell it where you are and how much time you've got. It builds the day.</p>
   </header>
 
-  <div class="card" id="form-card">
+  <div class="card" id="planner">
     <div class="row">
       <div>
         <label data-i18n="city_label">City or address</label>
@@ -124,7 +157,18 @@
         <button class="locbtn" id="use-loc" type="button" data-i18n="use_loc">📍 Use my current location</button>
       </div>
     </div>
+
     <div class="row">
+      <div style="flex:1 1 100%;">
+        <label data-i18n="when_label">When</label>
+        <div class="chips" id="time-chips">
+          <div class="chip active" data-val="now2" data-i18n="time_now2">Right now, ~2 hours</div>
+          <div class="chip" data-val="nowday" data-i18n="time_nowday">Right now, most of the day</div>
+          <div class="chip" data-val="custom" data-i18n="time_custom">Choose a specific time</div>
+        </div>
+      </div>
+    </div>
+    <div class="row" id="custom-time-row" style="display:none;">
       <div>
         <label data-i18n="date_label">Date</label>
         <input type="date" id="date">
@@ -138,35 +182,67 @@
         <input type="time" id="end-time" value="22:00">
       </div>
     </div>
+
     <div class="row">
-      <div>
-        <label data-i18n="vibe_label">Vibe</label>
-        <div class="chips" id="vibe-chips">
-          <div class="chip active" data-val="romantic" data-i18n="vibe_romantic">Romantic</div>
-          <div class="chip" data-val="chill" data-i18n="vibe_chill">Chill</div>
-          <div class="chip" data-val="adventurous" data-i18n="vibe_adventurous">Adventurous</div>
-          <div class="chip" data-val="budget" data-i18n="vibe_budget">Budget</div>
+      <div style="flex:1 1 100%;">
+        <label data-i18n="mood_label">Mood</label>
+        <div class="moods" id="mood-cards">
+          <button type="button" class="mood" data-preset="romantic">
+            <span class="glyph">✦</span>
+            <span class="name" data-i18n="mood_romantic_name">Romantic evening</span>
+            <span class="desc" data-i18n="mood_romantic_desc">Treat yourself, evening-paced</span>
+          </button>
+          <button type="button" class="mood" data-preset="solo">
+            <span class="glyph">◐</span>
+            <span class="name" data-i18n="mood_solo_name">Solo reset</span>
+            <span class="desc" data-i18n="mood_solo_desc">Quiet, unhurried, budget-easy</span>
+          </button>
+          <button type="button" class="mood" data-preset="friends">
+            <span class="glyph">↗</span>
+            <span class="name" data-i18n="mood_friends_name">With friends</span>
+            <span class="desc" data-i18n="mood_friends_desc">A little bolder, built for a group</span>
+          </button>
+          <button type="button" class="mood" data-preset="chill">
+            <span class="glyph">〜</span>
+            <span class="name" data-i18n="mood_chill_name">Just chill</span>
+            <span class="desc" data-i18n="mood_chill_desc">No agenda, let it decide</span>
+          </button>
+        </div>
+        <button type="button" class="customize-toggle" id="customize-toggle">Customize vibe, group, budget →</button>
+        <div class="advanced" id="advanced-controls" style="display:none;">
+          <div class="row">
+            <div>
+              <label data-i18n="vibe_label">Vibe</label>
+              <div class="chips" id="vibe-chips">
+                <div class="chip" data-val="romantic" data-i18n="vibe_romantic">Romantic</div>
+                <div class="chip" data-val="chill" data-i18n="vibe_chill">Chill</div>
+                <div class="chip" data-val="adventurous" data-i18n="vibe_adventurous">Adventurous</div>
+                <div class="chip" data-val="budget" data-i18n="vibe_budget">Budget</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label data-i18n="group_label">Group</label>
+              <select id="group">
+                <option value="couple" data-i18n="group_couple">Couple / date</option>
+                <option value="solo" data-i18n="group_solo">Solo</option>
+                <option value="friends" data-i18n="group_friends">Friends</option>
+              </select>
+            </div>
+            <div>
+              <label data-i18n="budget_label">Budget level</label>
+              <select id="budget">
+                <option value="1" data-i18n="budget_1">$ — keep it cheap</option>
+                <option value="2" data-i18n="budget_2">$$ — normal</option>
+                <option value="3" data-i18n="budget_3">$$$ — treat yourself</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="row">
-      <div>
-        <label data-i18n="group_label">Group</label>
-        <select id="group">
-          <option value="couple" data-i18n="group_couple">Couple / date</option>
-          <option value="solo" data-i18n="group_solo">Solo</option>
-          <option value="friends" data-i18n="group_friends">Friends</option>
-        </select>
-      </div>
-      <div>
-        <label data-i18n="budget_label">Budget level</label>
-        <select id="budget">
-          <option value="1" data-i18n="budget_1">$ — keep it cheap</option>
-          <option value="2" selected data-i18n="budget_2">$$ — normal</option>
-          <option value="3" data-i18n="budget_3">$$$ — treat yourself</option>
-        </select>
-      </div>
-    </div>
+
     <button class="submit" id="go" data-i18n="go_btn">Plan my day</button>
   </div>
 
@@ -199,9 +275,17 @@
 let LANG = (navigator.language||'').toLowerCase().startsWith('tr') ? 'tr' : 'en';
 const STRINGS = {
   en:{
+    eyebrow:"Free time on your hands?",
     subtitle:"Tell it where you are and how much time you've got. It builds the day.",
     city_label:"City or address", city_placeholder:"e.g. Lisbon, or 41.39,2.16",
-    date_label:"Date", start_label:"Start time", end_label:"End time",
+    when_label:"When", date_label:"Date", start_label:"Start time", end_label:"End time",
+    time_now2:"Right now, ~2 hours", time_nowday:"Right now, most of the day", time_custom:"Choose a specific time",
+    mood_label:"Mood",
+    mood_romantic_name:"Romantic evening", mood_romantic_desc:"Treat yourself, evening-paced",
+    mood_solo_name:"Solo reset", mood_solo_desc:"Quiet, unhurried, budget-easy",
+    mood_friends_name:"With friends", mood_friends_desc:"A little bolder, built for a group",
+    mood_chill_name:"Just chill", mood_chill_desc:"No agenda, let it decide",
+    customize_show:"Customize vibe, group, budget →", customize_hide:"Hide customization",
     vibe_label:"Vibe", group_label:"Group", budget_label:"Budget level",
     use_loc:"📍 Use my current location", use_loc_locating:"📍 Locating…",
     vibe_romantic:"Romantic", vibe_chill:"Chill", vibe_adventurous:"Adventurous", vibe_budget:"Budget",
@@ -239,10 +323,18 @@ const STRINGS = {
     lang_toggle:"TR",
   },
   tr:{
+    eyebrow:"Boş vaktin mi var?",
     subtitle:"Nerede olduğunu ve ne kadar vaktin olduğunu söyle, günü senin için kursun.",
     city_label:"Şehir veya adres", city_placeholder:"örn. Lizbon, ya da 41.39,2.16",
-    date_label:"Tarih", start_label:"Başlangıç saati", end_label:"Bitiş saati",
-    vibe_label:"Mod", group_label:"Grup", budget_label:"Bütçe seviyesi",
+    when_label:"Ne zaman", date_label:"Tarih", start_label:"Başlangıç saati", end_label:"Bitiş saati",
+    time_now2:"Şimdi, ~2 saat", time_nowday:"Şimdi, günün geri kalanı", time_custom:"Belirli bir saat seç",
+    mood_label:"Mod",
+    mood_romantic_name:"Romantik akşam", mood_romantic_desc:"Kendini şımart, akşam temposunda",
+    mood_solo_name:"Tek başına mola", mood_solo_desc:"Sakin, aceleye gerek yok, bütçe dostu",
+    mood_friends_name:"Arkadaşlarla", mood_friends_desc:"Biraz daha cesur, grup için uygun",
+    mood_chill_name:"Sadece takıl", mood_chill_desc:"Planım yok, o karar versin",
+    customize_show:"Mod, grup, bütçeyi özelleştir →", customize_hide:"Özelleştirmeyi gizle",
+    vibe_label:"Mod (detay)", group_label:"Grup", budget_label:"Bütçe seviyesi",
     use_loc:"📍 Konumumu kullan", use_loc_locating:"📍 Konum alınıyor…",
     vibe_romantic:"Romantik", vibe_chill:"Sakin", vibe_adventurous:"Maceralı", vibe_budget:"Ekonomik",
     group_couple:"Çift / buluşma", group_solo:"Tek başına", group_friends:"Arkadaşlarla",
@@ -279,6 +371,7 @@ const STRINGS = {
     lang_toggle:"EN",
   },
 };
+let advancedOpen = false;
 function t(key, vars){
   let str = STRINGS[LANG][key] ?? key;
   if(vars) Object.entries(vars).forEach(([k,v])=>{ str = str.replace(`{${k}}`, v); });
@@ -295,6 +388,7 @@ function applyI18n(){
     if(STRINGS[LANG][key]!=null) el.placeholder = STRINGS[LANG][key];
   });
   $('lang-toggle').textContent = STRINGS[LANG].lang_toggle;
+  $('customize-toggle').textContent = advancedOpen ? t('customize_hide') : t('customize_show');
   if(currentPlan) render();
 }
 function escapeHtml(str){
@@ -329,7 +423,6 @@ const OUTDOOR = new Set(['park','viewpoint','artwork']);
 const SLOT_EMOJI = { coffee:'☕', activity:'🎯', food:'🍽️', evening:'🌙' };
 const VIBE_EMOJI = { romantic:'💕', chill:'😌', adventurous:'🧭', budget:'💸' };
 
-// which categories a vibe likes, per slot type
 const VIBE_MAP = {
   romantic:    { coffee:['cafe','bakery'], activity:['viewpoint','museum','gallery','park'], food:['restaurant'], evening:['bar'] },
   chill:       { coffee:['cafe','bakery'], activity:['park','gallery','museum','ice_cream'], food:['restaurant','cafe'], evening:['bar','cafe'] },
@@ -338,6 +431,13 @@ const VIBE_MAP = {
 };
 
 const SLOT_DURATION_MIN = { coffee:45, activity:90, activity2:75, food:90, evening:105 };
+
+const MOOD_PRESETS = {
+  romantic: { vibe:'romantic', group:'couple', budget:'3' },
+  solo:     { vibe:'chill', group:'solo', budget:'1' },
+  friends:  { vibe:'adventurous', group:'friends', budget:'2' },
+  chill:    { vibe:'chill', group:'couple', budget:'2' },
+};
 
 function slotsForDuration(hours){
   if (hours <= 2.5) return ['activity','food'];
@@ -676,6 +776,7 @@ document.querySelectorAll('#vibe-chips .chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
+    clearMoodSelection();
   });
 });
 
@@ -699,6 +800,48 @@ function showToast(msg){
   clearTimeout(showToast._t);
   showToast._t = setTimeout(()=>el.classList.remove('show'), 2200);
 }
+
+// ---------- time presets ----------
+function setTimeChipMode(key){
+  document.querySelectorAll('#time-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===key));
+  $('custom-time-row').style.display = key==='custom' ? 'flex' : 'none';
+}
+function applyTimePreset(key){
+  setTimeChipMode(key);
+  if(key==='custom') return;
+  const now = new Date();
+  $('date').value = now.toISOString().slice(0,10);
+  const startMin = now.getHours()*60 + now.getMinutes();
+  $('start-time').value = minutesToHHMM(startMin);
+  let endMin = key==='now2' ? startMin + 120 : Math.max(startMin + 180, 1320);
+  endMin = Math.min(endMin, 1439);
+  $('end-time').value = minutesToHHMM(endMin);
+}
+document.querySelectorAll('#time-chips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=> applyTimePreset(chip.dataset.val));
+});
+
+// ---------- mood presets ----------
+function selectMood(key){
+  const preset = MOOD_PRESETS[key];
+  if(!preset) return;
+  document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===preset.vibe));
+  $('group').value = preset.group;
+  $('budget').value = preset.budget;
+  document.querySelectorAll('#mood-cards .mood').forEach(m=>m.classList.toggle('active', m.dataset.preset===key));
+}
+function clearMoodSelection(){
+  document.querySelectorAll('#mood-cards .mood').forEach(m=>m.classList.remove('active'));
+}
+document.querySelectorAll('#mood-cards .mood').forEach(card=>{
+  card.addEventListener('click', ()=> selectMood(card.dataset.preset));
+});
+$('group').addEventListener('change', clearMoodSelection);
+$('budget').addEventListener('change', clearMoodSelection);
+
+function openAdvanced(){ $('advanced-controls').style.display='block'; advancedOpen=true; $('customize-toggle').textContent = t('customize_hide'); }
+function closeAdvanced(){ $('advanced-controls').style.display='none'; advancedOpen=false; $('customize-toggle').textContent = t('customize_show'); }
+$('customize-toggle').addEventListener('click', ()=> advancedOpen ? closeAdvanced() : openAdvanced());
 
 $('go').addEventListener('click', planDay);
 
@@ -767,6 +910,13 @@ async function planDay(){
   } finally {
     $('go').disabled = false;
   }
+}
+
+function planAgain(){
+  $('result').style.display='none';
+  $('result').innerHTML='';
+  clearError();
+  document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 // ---------- swap a single stop for the next-best alternative ----------
@@ -883,7 +1033,13 @@ $('history-clear').addEventListener('click', ()=>{ if(confirm(t('history_clear_c
 $('lang-toggle').addEventListener('click', ()=>{ LANG = LANG==='tr' ? 'en' : 'tr'; applyI18n(); });
 
 // ---------- map ----------
+// Leaflet's vector layers are drawn via SVG/Canvas, which can't reliably read CSS
+// custom properties, so the route color is resolved to a literal hex matching
+// the current color-scheme instead of referencing var(--accent).
 let leafletMap = null;
+function currentAccentHex(){
+  return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? '#e0ac5c' : '#a9762f';
+}
 function renderMap(center, stops, geometry){
   const el = $('mapview');
   if(!el || typeof L === 'undefined') return;
@@ -895,10 +1051,11 @@ function renderMap(center, stops, geometry){
 
   const points = [center, ...stops.map(s=>s.poi)];
   const latlngs = points.map(p=>[p.lat,p.lon]);
+  const accentHex = currentAccentHex();
   if(geometry && geometry.length){
-    L.polyline(geometry, { color:'#ff6b6b', weight:4, opacity:0.85 }).addTo(leafletMap);
+    L.polyline(geometry, { color:accentHex, weight:4, opacity:0.85 }).addTo(leafletMap);
   } else {
-    L.polyline(latlngs, { color:'#ff6b6b', weight:3, opacity:0.6, dashArray:'6,6' }).addTo(leafletMap);
+    L.polyline(latlngs, { color:accentHex, weight:3, opacity:0.6, dashArray:'6,6' }).addTo(leafletMap);
   }
   points.forEach((p,i)=>{
     const label = i===0 ? '📍' : String(i);
@@ -954,31 +1111,39 @@ function render(){
 
   html += `<div class="share-row">
     <button class="again" id="share-btn">${escapeHtml(t('share_btn'))}</button>
-    <button class="again" onclick="location.reload()">${escapeHtml(t('again_btn'))}</button>
+    <button class="again" id="again-btn">${escapeHtml(t('again_btn'))}</button>
   </div>`;
 
   $('result').innerHTML = html;
   $('result').style.display = 'block';
   $('share-btn').addEventListener('click', onShareClick);
+  $('again-btn').addEventListener('click', planAgain);
 
   try{ renderMap(center, stops, routeGeometry); }catch(e){ console.warn('Map render failed:', e.message); }
 }
 
 // ---------- boot ----------
 applyI18n();
-(function initFromShareLink(){
+(function boot(){
   const params = new URLSearchParams(location.search);
-  if(!params.has('city')) return;
+  if(!params.has('city')){
+    applyTimePreset('now2');
+    selectMood('chill');
+    return;
+  }
   $('city').value = params.get('city') || '';
   if(params.has('date')) $('date').value = params.get('date');
   if(params.has('start')) $('start-time').value = params.get('start');
   if(params.has('end')) $('end-time').value = params.get('end');
+  setTimeChipMode('custom');
   if(params.has('vibe')){
     const v = params.get('vibe');
     document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===v));
   }
   if(params.has('group')) $('group').value = params.get('group');
   if(params.has('budget')) $('budget').value = params.get('budget');
+  clearMoodSelection();
+  openAdvanced();
   planDay();
 })();
 </script>
