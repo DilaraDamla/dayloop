@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DayLoop — plan your day, anywhere</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
+    --text:#eef0f4; --muted:#9aa3b2; --accent:#ff6b6b; --accent2:#4ecdc4;
+    --warn:#ffb84d; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(160deg,#0f1115,#151822 60%,#171a21);
+    color:var(--text); min-height:100vh; padding:32px 16px 80px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  header{text-align:center;margin-bottom:28px;}
+  header h1{
+    font-size:2.2rem;margin:0 0 6px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    letter-spacing:-0.5px;
+  }
+  header p{color:var(--muted);margin:0;font-size:0.95rem;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:20px; margin-bottom:16px;
+  }
+  label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
+  .row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .row > div{flex:1;min-width:140px;}
+  input[type=text],input[type=date],input[type=time],select{
+    width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
+    background:var(--panel2); color:var(--text); font-size:0.95rem; outline:none;
+  }
+  input:focus,select:focus{border-color:var(--accent2);}
+  .locbtn{
+    margin-top:8px; background:none; border:1px solid var(--border); color:var(--accent2);
+    padding:9px 12px; border-radius:10px; font-size:0.85rem; cursor:pointer; width:100%;
+  }
+  .locbtn:hover{border-color:var(--accent2);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    padding:9px 14px; border-radius:999px; border:1px solid var(--border); background:var(--panel2);
+    color:var(--muted); cursor:pointer; font-size:0.85rem; user-select:none; transition:.15s;
+  }
+  .chip.active{border-color:var(--accent); color:var(--text); background:rgba(255,107,107,0.12);}
+  .submit{
+    width:100%; padding:14px; border:none; border-radius:12px; font-size:1rem; font-weight:700;
+    background:linear-gradient(90deg,var(--accent),#ff8e8e); color:#1a0d0d; cursor:pointer; margin-top:6px;
+  }
+  .submit:disabled{opacity:0.5;cursor:not-allowed;}
+  #error{display:none;background:rgba(255,107,107,0.1);border:1px solid var(--accent);color:#ffb3b3;padding:14px;border-radius:10px;margin-bottom:16px;font-size:0.9rem;}
+  #status{display:none;color:var(--muted);font-size:0.9rem;text-align:center;padding:20px;}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:-2px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  #result{display:none;}
+  .weathercard{display:flex;align-items:center;gap:14px;}
+  .weathercard .emoji{font-size:2.4rem;}
+  .weathercard .wtext strong{font-size:1.3rem;}
+  .weathercard .wtext div{color:var(--muted);font-size:0.85rem;margin-top:2px;}
+  .stop{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; margin-bottom:12px; position:relative;
+  }
+  .stop .time{color:var(--accent2); font-weight:700; font-size:0.85rem; letter-spacing:0.03em;}
+  .stop h3{margin:6px 0 4px; font-size:1.15rem;}
+  .stop .cat{color:var(--muted); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;}
+  .stop .addr{color:var(--muted); font-size:0.88rem; margin-top:6px;}
+  .stop a.maplink{display:inline-block;margin-top:10px;font-size:0.85rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);padding:6px 12px;border-radius:8px;}
+  .stop a.maplink:hover{border-color:var(--accent2);}
+  .travel{text-align:center;color:var(--muted);font-size:0.8rem;margin:2px 0 12px;}
+  .travel span{background:var(--panel2);padding:4px 10px;border-radius:999px;border:1px solid var(--border);}
+  .note{background:rgba(78,205,196,0.08);border:1px solid rgba(78,205,196,0.3);color:#bfeeea;padding:10px 14px;border-radius:10px;font-size:0.85rem;margin-bottom:16px;}
+  footer{margin-top:28px;text-align:center;color:var(--muted);font-size:0.75rem;line-height:1.6;}
+  footer a{color:var(--muted);}
+  .again{background:none;border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:10px;cursor:pointer;font-size:0.85rem;margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DayLoop</h1>
+    <p>Tell it where you are and how much time you've got. It builds the day.</p>
+  </header>
+
+  <div class="card" id="form-card">
+    <div class="row">
+      <div>
+        <label>City or address</label>
+        <input type="text" id="city" placeholder="e.g. Lisbon, or 41.39,2.16">
+        <button class="locbtn" id="use-loc" type="button">📍 Use my current location</button>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label>Start time</label>
+        <input type="time" id="start-time" value="14:00">
+      </div>
+      <div>
+        <label>End time</label>
+        <input type="time" id="end-time" value="22:00">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Vibe</label>
+        <div class="chips" id="vibe-chips">
+          <div class="chip active" data-val="romantic">Romantic</div>
+          <div class="chip" data-val="chill">Chill</div>
+          <div class="chip" data-val="adventurous">Adventurous</div>
+          <div class="chip" data-val="budget">Budget</div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Group</label>
+        <select id="group">
+          <option value="couple">Couple / date</option>
+          <option value="solo">Solo</option>
+          <option value="friends">Friends</option>
+        </select>
+      </div>
+      <div>
+        <label>Budget level</label>
+        <select id="budget">
+          <option value="1">$ — keep it cheap</option>
+          <option value="2" selected>$$ — normal</option>
+          <option value="3">$$$ — treat yourself</option>
+        </select>
+      </div>
+    </div>
+    <button class="submit" id="go">Plan my day</button>
+  </div>
+
+  <div id="error"></div>
+  <div id="status"></div>
+  <div id="result"></div>
+
+  <footer>
+    Place data © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors ·
+    Geocoding via <a href="https://nominatim.org" target="_blank">Nominatim</a> ·
+    Weather via <a href="https://open-meteo.com" target="_blank">Open-Meteo</a><br>
+    Prototype — walking times are estimates, always double-check opening hours before you go.
+  </footer>
+</div>
+
+<script>
+// ---------- config ----------
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
+const WALK_SPEED_KMH = 4.5;
+
+const CATEGORY_TAGS = {
+  cafe:       [['amenity','cafe']],
+  restaurant: [['amenity','restaurant']],
+  bar:        [['amenity','bar'],['amenity','pub']],
+  nightclub:  [['amenity','nightclub']],
+  cinema:     [['amenity','cinema']],
+  museum:     [['tourism','museum']],
+  gallery:    [['tourism','gallery']],
+  park:       [['leisure','park'],['leisure','garden']],
+  viewpoint:  [['tourism','viewpoint']],
+  artwork:    [['tourism','artwork']],
+};
+
+const INDOOR = new Set(['cafe','restaurant','bar','nightclub','cinema','museum','gallery']);
+const OUTDOOR = new Set(['park','viewpoint','artwork']);
+
+// which categories a vibe likes, per slot type
+const VIBE_MAP = {
+  romantic:    { coffee:['cafe'], activity:['viewpoint','museum','gallery','park'], food:['restaurant'], evening:['bar'] },
+  chill:       { coffee:['cafe'], activity:['park','gallery','museum'], food:['restaurant','cafe'], evening:['bar','cafe'] },
+  adventurous: { coffee:['cafe'], activity:['viewpoint','artwork','park'], food:['restaurant'], evening:['bar','nightclub'] },
+  budget:      { coffee:['cafe'], activity:['park','viewpoint','artwork'], food:['restaurant','cafe'], evening:['bar'] },
+};
+
+const SLOT_DURATION_MIN = { coffee:45, activity:90, activity2:75, food:90, evening:105 };
+
+function slotsForDuration(hours){
+  if (hours <= 2.5) return ['activity','food'];
+  if (hours <= 4.5) return ['coffee','activity','food'];
+  if (hours <= 7) return ['coffee','activity','food','evening'];
+  return ['coffee','activity','activity2','food','evening'];
+}
+
+// ---------- helpers ----------
+function haversineKm(a,b){
+  const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLon=(b.lon-a.lon)*Math.PI/180;
+  const s1=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s1),Math.sqrt(1-s1));
+}
+function walkMinutes(km){ return Math.max(3, Math.round((km / WALK_SPEED_KMH) * 60)); }
+function fmtTime(mins){
+  const h = Math.floor(mins/60)%24, m = mins%60;
+  const ampm = h>=12 ? 'PM':'AM'; let h12 = h%12; if(h12===0) h12=12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function toMinutes(hhmm){ const [h,m]=hhmm.split(':').map(Number); return h*60+m; }
+function placeName(tags){ return tags.name || tags['name:en'] || null; }
+function placeAddress(tags){
+  const parts = [tags['addr:housenumber'], tags['addr:street'] || tags['addr:city']].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+function mapLink(lat,lon,label){
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}${label?`&query_place_id=`:''}`;
+}
+
+// ---------- API calls ----------
+// Every fetch is wrapped with a timeout — plain fetch() has no default timeout,
+// so a slow/unresponsive server would otherwise hang the UI forever on "Finding places nearby…"
+// with no error and no way out. Aborting after a few seconds lets us fail fast and
+// move to the next fallback (or show a real error) instead of spinning indefinitely.
+async function fetchWithTimeout(url, options={}, timeoutMs=9000){
+  const controller = new AbortController();
+  const id = setTimeout(()=>controller.abort(), timeoutMs);
+  try{
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch(e){
+    if(e.name === 'AbortError') throw new Error(`Timed out after ${Math.round(timeoutMs/1000)}s: ${url.split('/')[2]}`);
+    throw e;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function geocodeCity(q){
+  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
+  const res = await fetchWithTimeout(url, { headers: { 'Accept-Language':'en' } }, 9000);
+  if(!res.ok) throw new Error('Geocoding failed');
+  const data = await res.json();
+  if(!data.length) throw new Error(`Could not find "${q}". Try a more specific place name.`);
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), label: data[0].display_name };
+}
+
+async function fetchWeather(lat,lon,dateStr){
+  const url = `${METEO_URL}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,weathercode&timezone=auto&start_date=${dateStr}&end_date=${dateStr}`;
+  const res = await fetchWithTimeout(url, {}, 9000);
+  if(!res.ok) throw new Error('Weather lookup failed');
+  return res.json();
+}
+
+function summarizeWeather(weatherJson, startMin, endMin){
+  const h = weatherJson.hourly;
+  if(!h || !h.time || !h.time.length){
+    return { avgTemp:null, maxRain:0, code:0, indoorBias:false, label:'Weather data unavailable' };
+  }
+  const idxs = h.time.map((t,i)=>i).filter(i=>{
+    const hour = parseInt(h.time[i].slice(11,13),10)*60;
+    return hour >= (Math.floor(startMin/60)*60) - 60 && hour <= endMin;
+  });
+  const use = idxs.length ? idxs : h.time.map((_,i)=>i);
+  const temps = use.map(i=>h.temperature_2m[i]).filter(v=>v!=null);
+  const rains = use.map(i=>h.precipitation_probability?.[i] ?? 0);
+  const codes = use.map(i=>h.weathercode[i]);
+  const avgTemp = temps.length ? Math.round(temps.reduce((a,b)=>a+b,0)/temps.length) : null;
+  const maxRain = rains.length ? Math.max(...rains) : 0;
+  const code = codes.length ? Math.max(...codes) : 0;
+  const indoorBias = maxRain >= 45 || code >= 51 || (avgTemp!=null && avgTemp < 8);
+  let label = 'Clear';
+  if(code>=95) label='Thunderstorms';
+  else if(code>=71 && code<=86) label='Snow';
+  else if(code>=51) label='Rain likely';
+  else if(code>=45) label='Foggy';
+  else if(code>=1) label='Partly cloudy';
+  return { avgTemp, maxRain, code, indoorBias, label };
+}
+
+// Multiple public Overpass mirrors — some reject requests from a null/file:// origin,
+// so we try each in turn before falling back to a CORS proxy as a last resort.
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+const CORS_PROXY_PREFIX = 'https://api.allorigins.win/raw?url=';
+
+async function queryOverpass(query, onProgress){
+  let lastErr;
+  for(const endpoint of OVERPASS_ENDPOINTS){
+    const host = endpoint.split('/')[2];
+    onProgress?.(`Trying ${host}…`);
+    try{
+      const res = await fetchWithTimeout(endpoint, {
+        method:'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'data=' + encodeURIComponent(query)
+      }, 10000);
+      if(res.ok) return await res.json();
+      lastErr = new Error(`${endpoint} responded ${res.status}`);
+    } catch(e){ lastErr = e; console.warn('Overpass attempt failed:', host, e.message); }
+  }
+  // Last resort: route a GET request through a public CORS proxy. This unblocks the
+  // page when opened directly as a local file (origin "null"), which some Overpass
+  // mirrors refuse to talk to. Not meant for production — see CONCEPT.md.
+  try{
+    onProgress?.('Trying a fallback route…');
+    const getUrl = `${OVERPASS_ENDPOINTS[0]}?data=${encodeURIComponent(query)}`;
+    const res = await fetchWithTimeout(CORS_PROXY_PREFIX + encodeURIComponent(getUrl), {}, 12000);
+    if(res.ok) return await res.json();
+    lastErr = new Error(`CORS proxy responded ${res.status}`);
+  } catch(e){ lastErr = e; console.warn('CORS proxy attempt failed:', e.message); }
+  console.error('All Overpass attempts failed:', lastErr);
+  throw new Error('Places lookup failed — map data sources are unreachable right now (tried 4 different routes). If you opened this file directly (double-click), running it through a local server instead usually fixes this for good — ask for those steps again if you want them.');
+}
+
+async function fetchPOIs(lat,lon,onProgress){
+  const radii = { cafe:1200, restaurant:1200, bar:1500, nightclub:2500, cinema:3000,
+                   museum:3000, gallery:2000, park:2000, viewpoint:3500, artwork:2000 };
+  let body = '[out:json][timeout:25];(';
+  for(const [cat, tagPairs] of Object.entries(CATEGORY_TAGS)){
+    for(const [k,v] of tagPairs){
+      body += `node["${k}"="${v}"](around:${radii[cat]},${lat},${lon});`;
+    }
+  }
+  body += ');out center tags;';
+  const data = await queryOverpass(body, onProgress);
+  return data.elements.map(el=>{
+    const tags = el.tags||{};
+    let category = null;
+    for(const [cat, tagPairs] of Object.entries(CATEGORY_TAGS)){
+      if(tagPairs.some(([k,v])=>tags[k]===v)){ category = cat; break; }
+    }
+    return { lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon, tags, category };
+  }).filter(p=>p.category && p.lat && p.lon);
+}
+
+// ---------- scoring & itinerary ----------
+function scorePOI(poi, vibe){
+  let s = 0;
+  if(placeName(poi.tags)) s += 3;
+  s += Object.keys(poi.tags).length * 0.15;
+  const cuisine = (poi.tags.cuisine||'').toLowerCase();
+  if(vibe==='romantic' && /italian|french|seafood|wine/.test(cuisine)) s += 2;
+  if(vibe==='budget' && poi.category==='restaurant' && !cuisine) s += 0.5;
+  if(vibe==='adventurous' && ['viewpoint','artwork'].includes(poi.category)) s += 1.5;
+  return s;
+}
+
+function buildItinerary(pois, center, vibe, startMin, endMin, indoorBias){
+  const durationHours = (endMin-startMin)/60;
+  const slotTypes = slotsForDuration(durationHours);
+  const vibeMap = VIBE_MAP[vibe];
+  const used = new Set();
+  let prev = center;
+  const stops = [];
+
+  for(const slotType of slotTypes){
+    let cats = vibeMap[slotType==='activity2' ? 'activity' : slotType] || [];
+    if(indoorBias) cats = cats.filter(c=>!OUTDOOR.has(c)).length ? cats.filter(c=>!OUTDOOR.has(c)) : cats;
+    let candidates = pois.filter(p => cats.includes(p.category) && !used.has(p));
+    if(!candidates.length){
+      // fallback: any unused place in a sane category for this slot's purpose
+      let fallbackCats = slotType==='food' ? ['restaurant'] : slotType==='coffee' ? ['cafe'] : slotType==='evening' ? ['bar','cinema'] : ['park','museum','gallery','viewpoint'];
+      if(indoorBias){
+        const filtered = fallbackCats.filter(c=>!OUTDOOR.has(c));
+        if(filtered.length) fallbackCats = filtered;
+      }
+      candidates = pois.filter(p => fallbackCats.includes(p.category) && !used.has(p));
+    }
+    if(!candidates.length) continue; // genuinely nothing available — skip this slot rather than fake it
+
+    candidates = candidates
+      .map(p => ({ p, d: haversineKm(prev, p) }))
+      .sort((a,b)=>{
+        const scoreA = scorePOI(a.p, vibe) - a.d*0.8;
+        const scoreB = scorePOI(b.p, vibe) - b.d*0.8;
+        return scoreB - scoreA;
+      });
+
+    const chosen = candidates[0].p;
+    used.add(chosen);
+    stops.push({ slotType, poi: chosen, distFromPrev: haversineKm(prev, chosen) });
+    prev = chosen;
+  }
+  return stops;
+}
+
+function scheduleStops(stops, startMin){
+  let t = startMin;
+  return stops.map((s,i)=>{
+    if(i>0) t += walkMinutes(s.distFromPrev);
+    const start = t;
+    const dur = SLOT_DURATION_MIN[s.slotType] || 60;
+    t += dur;
+    return { ...s, start, end: t, walkFromPrev: i>0 ? walkMinutes(s.distFromPrev) : 0 };
+  });
+}
+
+const SLOT_LABEL = { coffee:'☕ Coffee', activity:'🎯 Activity', activity2:'🎯 Activity', food:'🍽️ Food', evening:'🌙 Evening' };
+const CAT_LABEL = { cafe:'Cafe', restaurant:'Restaurant', bar:'Bar', nightclub:'Nightclub', cinema:'Cinema', museum:'Museum', gallery:'Gallery', park:'Park', viewpoint:'Viewpoint', artwork:'Public art' };
+
+// ---------- UI wiring ----------
+const $ = id => document.getElementById(id);
+$('date').value = new Date().toISOString().slice(0,10);
+
+document.querySelectorAll('#vibe-chips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#vibe-chips .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+$('use-loc').addEventListener('click', ()=>{
+  if(!navigator.geolocation){ showError('Geolocation not supported in this browser.'); return; }
+  $('use-loc').textContent = '📍 Locating…';
+  navigator.geolocation.getCurrentPosition(
+    pos => { $('city').value = `${pos.coords.latitude.toFixed(5)},${pos.coords.longitude.toFixed(5)}`; $('use-loc').textContent='📍 Use my current location'; },
+    err => { showError('Could not get your location — type a city instead.'); $('use-loc').textContent='📍 Use my current location'; }
+  );
+});
+
+function showError(msg){ $('error').style.display='block'; $('error').textContent = msg; }
+function clearError(){ $('error').style.display='none'; }
+function setStatus(msg){ $('status').style.display = msg ? 'block':'none'; $('status').innerHTML = msg ? `<span class="spinner"></span>${msg}` : ''; }
+
+$('go').addEventListener('click', async ()=>{
+  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+  const cityInput = $('city').value.trim();
+  const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
+  const dateStr = $('date').value;
+  const startMin = toMinutes($('start-time').value);
+  const endMin = toMinutes($('end-time').value);
+
+  if(!cityInput){ showError('Enter a city/address, or use your current location.'); return; }
+  if(endMin <= startMin){ showError('End time must be after start time.'); return; }
+
+  $('go').disabled = true;
+  try{
+    let center;
+    const coordMatch = cityInput.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
+    setStatus('Finding your location…');
+    if(coordMatch){
+      center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[3]), label: cityInput };
+    } else {
+      center = await geocodeCity(cityInput);
+    }
+
+    setStatus('Checking the weather…');
+    const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
+    const weather = summarizeWeather(weatherJson, startMin, endMin);
+
+    setStatus('Finding places nearby…');
+    const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(`Finding places nearby… (${msg})`));
+    if(!pois.length){
+      showError('Not enough map data for this location yet (common in smaller towns). Try a nearby bigger city or a different address.');
+      setStatus(''); $('go').disabled=false; return;
+    }
+
+    setStatus('Building your day…');
+    const rawStops = buildItinerary(pois, center, vibe, startMin, endMin, weather.indoorBias);
+    if(!rawStops.length){
+      showError('Could not find enough matching places nearby for this vibe. Try a different vibe or a bigger city.');
+      setStatus(''); $('go').disabled=false; return;
+    }
+    const stops = scheduleStops(rawStops, startMin);
+
+    render(center, weather, stops);
+    setStatus('');
+  } catch(e){
+    console.error(e);
+    showError(e.message || 'Something went wrong. Please try again.');
+    setStatus('');
+  } finally {
+    $('go').disabled = false;
+  }
+});
+
+function render(center, weather, stops){
+  const emoji = weather.code>=95?'⛈️':weather.code>=71?'❄️':weather.code>=51?'🌧️':weather.code>=45?'🌫️':weather.code>=1?'⛅':'☀️';
+  let html = `<div class="card weathercard">
+    <div class="emoji">${emoji}</div>
+    <div class="wtext">
+      <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${weather.label}</strong>
+      <div>${weather.indoorBias ? 'Leaning indoor for this plan because of the forecast.' : 'Good conditions — mixing in some outdoor stops.'}</div>
+    </div>
+  </div>`;
+  html += `<div class="note">📍 Planning around <strong>${center.label ? center.label.split(',').slice(0,2).join(',') : `${center.lat.toFixed(3)}, ${center.lon.toFixed(3)}`}</strong></div>`;
+
+  stops.forEach((s,i)=>{
+    if(i>0){
+      html += `<div class="travel">🚶 <span>${s.walkFromPrev} min walk to next stop</span></div>`;
+    }
+    const name = placeName(s.poi.tags) || `${CAT_LABEL[s.poi.category]} nearby`;
+    const addr = placeAddress(s.poi.tags);
+    html += `<div class="stop">
+      <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${SLOT_LABEL[s.slotType]}</div>
+      <h3>${name}</h3>
+      <div class="cat">${CAT_LABEL[s.poi.category]}</div>
+      ${addr?`<div class="addr">${addr}</div>`:''}
+      <a class="maplink" target="_blank" href="${mapLink(s.poi.lat,s.poi.lon)}">Open in Maps →</a>
+    </div>`;
+  });
+
+  html += `<button class="again" onclick="location.reload()">Plan a different day</button>`;
+  $('result').innerHTML = html;
+  $('result').style.display = 'block';
+}
+</script>
+</body>
+</html>
