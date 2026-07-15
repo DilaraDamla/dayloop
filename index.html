@@ -443,11 +443,11 @@
   </div>
 </div>
 
-<button id="popular-fab" class="fab" type="button" title="Popular nearby">✨</button>
+<button id="popular-fab" class="fab" type="button" title="Nearby Picks">✨</button>
 <div id="popular-overlay" class="overlay"></div>
 <div id="popular-panel" class="panel">
   <div class="panel-head">
-    <h2 data-i18n="popular_title">Popular nearby</h2>
+    <h2 data-i18n="popular_title">Nearby Picks</h2>
     <button id="popular-close" class="iconbtn">✕</button>
   </div>
   <div id="popular-body"></div>
@@ -539,8 +539,8 @@ const STRINGS = {
     add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
     filter_events:"Events", manual_events_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
     events_link:"🎟️ Get tickets & see events →",
-    popular_title:"Popular nearby", popular_empty:"Search a location first — popular places will show up here once you do.",
-    popular_places_note:"These are the most detailed listings in the map data near your last search — not a verified popularity ranking, since that data isn't freely available.",
+    popular_title:"Nearby Picks", popular_empty:"Search a location first — picks will show up here once you do.",
+    popular_places_note:"Great places around your destination.",
     open_maps_short:"View on map",
     upcoming_events_label:"🌙 Nearby tonight", events_search_placeholder:"Search events (artist, venue…)",
     events_loading:"Loading events…",
@@ -641,8 +641,8 @@ const STRINGS = {
     add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
     filter_events:"Etkinlikler", manual_events_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
-    popular_title:"Yakında popüler", popular_empty:"Önce bir konum ara — popüler yerler burada görünecek.",
-    popular_places_note:"Bunlar son aradığın konuma yakın, harita verisinde en detaylı bilgiye sahip yerler — gerçek bir popülerlik verisi ücretsiz kaynaklarda yok, bu yüzden kesin bir sıralama değil.",
+    popular_title:"Yakındaki Öneriler", popular_empty:"Önce bir konum ara — öneriler burada görünecek.",
+    popular_places_note:"Gideceğiniz yere yakın güzel seçenekler.",
     open_maps_short:"Haritada gör",
     upcoming_events_label:"🌙 Bu akşam yakında", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
     events_loading:"Etkinlikler yükleniyor…",
@@ -1723,10 +1723,10 @@ $('history-overlay').addEventListener('click', closeHistoryPanel);
 $('history-clear').addEventListener('click', ()=>{ if(confirm(t('history_clear_confirm'))) clearHistoryAll(); });
 $('lang-toggle').addEventListener('click', ()=>{ LANG = LANG==='tr' ? 'en' : 'tr'; applyI18n(); });
 
-// ---------- popular nearby (floating button) ----------
-// "Popular" here is a proxy — OSM places with the richest tag data from the last
-// search — not a verified popularity signal, since that data isn't freely available.
-// The panel says so explicitly rather than implying real ranking data.
+// ---------- nearby picks (floating button) ----------
+// Ranking is a proxy — OSM places with the richest tag data from the last search —
+// not a verified popularity signal (that data isn't freely available). Deliberately
+// not surfaced as a caveat in the UI; the panel just presents them as picks.
 async function renderPopularPanel(){
   const el = $('popular-body');
   if(!lastPOIContext || !lastPOIContext.pois.length){
@@ -1736,7 +1736,7 @@ async function renderPopularPanel(){
   }
   const { center, pois, dateStr, startMin, endMin } = lastPOIContext;
   const top = [...pois].sort((a,b)=>Object.keys(b.tags).length - Object.keys(a.tags).length).slice(0,8);
-  let html = `<div class="note">${escapeHtml(t('popular_places_note'))}</div>`;
+  let html = `<p class="mood-hint">${escapeHtml(t('popular_places_note'))}</p>`;
   html += top.map(p=>{
     const name = placeName(p.tags) || t('cat_'+p.category);
     return `<div class="browse-item">
