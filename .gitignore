@@ -1,1 +1,18 @@
+# Claude Code local settings (may contain machine-specific permissions)
 .claude/
+
+# Secrets / local env
+.env
+.env.*
+*.local
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Future tooling (no build step exists yet, but keep this ready)
+node_modules/
+dist/
