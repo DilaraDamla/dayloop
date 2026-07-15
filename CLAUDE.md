@@ -39,14 +39,25 @@ not a chatbot transcript.
   by construction, but keys must not live in source at all if avoidable
   (env/build-time injection, or a tiny backend proxy) once the project
   grows beyond a prototype.
-- This repo currently has two secrets committed and deployed:
-  `TICKETMASTER_API_KEY` and a Firebase `apiKey` in `dayloop.html`. The
-  Ticketmaster key is a genuine secret and must be **rotated** (Ticketmaster
-  dashboard) — do not treat "add `.gitignore` entry" as a fix, it's already
-  public in git history and on the live GitHub Pages deployment. The
-  Firebase web `apiKey` is not secret by Firebase's design (access is
-  controlled by Firestore/Auth security rules), but Firestore rules should
-  be verified to restrict `users/{uid}/plans` to that user only.
+- `TICKETMASTER_API_KEY` has been **removed from current tracked source**
+  (`dayloop.html`) — it is now an intentionally empty sentinel, and events
+  fall back to a search link until a backend/serverless proxy exists to
+  hold a real key server-side. The previously exposed key is still
+  **compromised** and must be treated as such: it was public in git history
+  and on the live GitHub Pages deployment, so removing it from source does
+  not neutralize it — it must be **rotated** in the Ticketmaster dashboard.
+- The Firebase web `apiKey` in `dayloop.html` remains **client-visible by
+  design** — Firebase's own docs say this config is meant to ship in public
+  client code and is not a secret by itself.
+- Firestore authorization depends entirely on **correctly deployed Security
+  Rules** (see `firestore.rules`, restricting `users/{userId}/plans` to that
+  user) — the config being public grants no access on its own, but rules
+  that are wrong or never deployed do leave data exposed. Don't assume the
+  rules file in the repo is live; verify it's actually deployed.
+- **Never add private API secrets directly to browser-delivered code** —
+  this app has no backend, so anything client-side is public to every
+  visitor. A key that needs to stay secret requires a backend or
+  serverless proxy, not a place in `dayloop.html`.
 - Do not rewrite published git history to scrub secrets without explicit
   user approval — rotating the key matters more than hiding old commits.
 
