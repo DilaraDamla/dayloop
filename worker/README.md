@@ -37,21 +37,28 @@ Query parameters:
 
 | Param           | Required | Notes                                                        |
 |-----------------|----------|----------------------------------------------------------------|
-| `lat`           | yes      | -90..90                                                        |
-| `lon`           | yes      | -180..180                                                      |
-| `radius`        | no       | km, clamped to 1–100, default 25                               |
+| `lat`           | yes      | -90..90 — the searched city's coordinates, always required     |
+| `lon`           | yes      | -180..180 — the searched city's coordinates, always required   |
 | `startDateTime` | no       | `YYYY-MM-DDTHH:mm:ssZ`, rejected if malformed                  |
 | `endDateTime`   | no       | `YYYY-MM-DDTHH:mm:ssZ`, rejected if malformed                  |
 | `locale`        | no       | e.g. `en-us`, `tr-tr`, or `*`; rejected if it doesn't match     |
 | `keyword`       | no       | free text, stripped of unusual characters, capped at 80 chars  |
 
-Result count is fixed server-side (20) and is not a client-controlled
-parameter, to keep upstream usage bounded.
+There is no client-supplied `radius` parameter. The Worker always searches
+from the exact `lat`/`lon` it's given (no hardcoded city, market, country, or
+locale) and escalates the search radius itself: 40 km, then 80 km, then
+150 km, stopping at the first tier that returns at least one event. A hard
+upstream failure (network/auth/rate-limit) stops the escalation immediately
+and is returned as an error — a bigger radius wouldn't fix any of those.
+
+Result count per tier is fixed server-side (20) and is not client-controlled,
+to keep upstream usage bounded.
 
 Response shape:
 
 ```json
 {
+  "radiusKm": 40,
   "events": [
     {
       "id": "...",
@@ -59,9 +66,11 @@ Response shape:
       "startDate": "2026-08-01",
       "startTime": "20:00:00",
       "venueName": "...",
+      "venueCity": "...",
       "address": "...",
       "lat": 41.0,
       "lon": 28.9,
+      "distanceKm": 3.2,
       "image": "https://...",
       "url": "https://...",
       "category": "Music",
@@ -72,6 +81,14 @@ Response shape:
   ]
 }
 ```
+
+`radiusKm` is the tier that was actually used (helpful for debugging distant
+results). `events` is sorted by `distanceKm` ascending, then by start
+date/time — closest-and-soonest first — so a widened radius still leads with
+the closest matches. `distanceKm` (great-circle distance from the searched
+`lat`/`lon` to the venue) and `venueCity` are included on every event
+specifically so a result from a fallback radius is never shown without
+context on how far away it actually is.
 
 Errors are returned as `{ "error": "...", "message": "..." }` with an
 appropriate HTTP status (400 for bad input, 502/429 for upstream problems,
@@ -94,7 +111,7 @@ npm run dev
 This starts a local Worker (default `http://127.0.0.1:8787`). Test it with:
 
 ```sh
-curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784&radius=25"
+curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784"
 ```
 
 `http://localhost:*` and `http://127.0.0.1:*` are allowed CORS origins by

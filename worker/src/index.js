@@ -14,9 +14,11 @@ const LOCAL_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 const TICKETMASTER_BASE = 'https://app.ticketmaster.com/discovery/v2/events.json';
 
-const RADIUS_MIN = 1;
-const RADIUS_MAX = 100;
-const RADIUS_DEFAULT = 25;
+// Search radius escalates automatically — no client-supplied radius, and no
+// per-market/per-country hardcoding: every request searches from the exact
+// lat/lon the client sends, starting narrow and widening only if that returns
+// nothing, so results stay close to the destination whenever possible.
+const RADIUS_TIERS_KM = [40, 80, 150];
 const RESULT_SIZE = 20; // fixed server-side; not client-controlled
 const CACHE_TTL_SECONDS = 300;
 
@@ -62,11 +64,18 @@ function parseLon(v) {
   return n;
 }
 
-function parseRadius(v) {
-  if (v === null || v === '') return RADIUS_DEFAULT;
-  const n = parseInt(v, 10);
-  if (!Number.isFinite(n)) return RADIUS_DEFAULT;
-  return Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, n));
+// Great-circle distance in km — used to sort results and to show "X km away"
+// on each event card, since a wide fallback radius can legitimately surface
+// events in a neighboring city that a user needs to be able to judge at a glance.
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Ticketmaster expects e.g. "2024-01-01T00:00:00Z" — reject anything else
@@ -95,7 +104,7 @@ function pickImage(images) {
   return (mid || images[0]).url || null;
 }
 
-function normalizeEvent(ev) {
+function normalizeEvent(ev, searchLat, searchLon) {
   const venue = ev._embedded && ev._embedded.venues && ev._embedded.venues[0];
   const addressParts = [];
   if (venue?.address?.line1) addressParts.push(venue.address.line1);
@@ -103,6 +112,12 @@ function normalizeEvent(ev) {
   if (venue?.country?.name) addressParts.push(venue.country.name);
   const price = Array.isArray(ev.priceRanges) ? ev.priceRanges[0] : null;
   const classification = Array.isArray(ev.classifications) ? ev.classifications[0] : null;
+  const venueLat = venue?.location?.latitude ? Number(venue.location.latitude) : null;
+  const venueLon = venue?.location?.longitude ? Number(venue.location.longitude) : null;
+  const distanceKm =
+    Number.isFinite(venueLat) && Number.isFinite(venueLon)
+      ? Math.round(haversineKm(searchLat, searchLon, venueLat, venueLon) * 10) / 10
+      : null;
 
   return {
     id: ev.id || null,
@@ -110,9 +125,11 @@ function normalizeEvent(ev) {
     startDate: ev.dates?.start?.localDate || null,
     startTime: ev.dates?.start?.localTime || null,
     venueName: venue?.name || null,
+    venueCity: venue?.city?.name || null,
     address: addressParts.join(', ') || null,
-    lat: venue?.location?.latitude ? Number(venue.location.latitude) : null,
-    lon: venue?.location?.longitude ? Number(venue.location.longitude) : null,
+    lat: venueLat,
+    lon: venueLon,
+    distanceKm,
     image: pickImage(ev.images),
     url: ev.url || null,
     category: classification?.segment?.name || classification?.genre?.name || null,
@@ -120,6 +137,61 @@ function normalizeEvent(ev) {
     priceMax: price && typeof price.max === 'number' ? price.max : null,
     priceCurrency: price?.currency || null,
   };
+}
+
+// One Discovery API call at a single radius tier. Returns either the raw event
+// list (possibly empty — the caller decides whether to widen the radius) or a
+// hard failure that should stop the tier loop and be reported as-is, since a
+// bigger radius won't fix an auth/rate-limit/network problem.
+async function searchTicketmasterOnce(lat, lon, radiusKm, params, env) {
+  const { startDateTime, endDateTime, locale, keyword } = params;
+  const upstream = new URL(TICKETMASTER_BASE);
+  upstream.searchParams.set('apikey', env.TICKETMASTER_API_KEY);
+  upstream.searchParams.set('latlong', `${lat},${lon}`);
+  upstream.searchParams.set('radius', String(radiusKm));
+  upstream.searchParams.set('unit', 'km');
+  upstream.searchParams.set('sort', 'date,asc');
+  upstream.searchParams.set('size', String(RESULT_SIZE));
+  if (startDateTime) upstream.searchParams.set('startDateTime', startDateTime);
+  if (endDateTime) upstream.searchParams.set('endDateTime', endDateTime);
+  if (locale) upstream.searchParams.set('locale', locale);
+  if (keyword) upstream.searchParams.set('keyword', keyword);
+
+  let tmResponse;
+  try {
+    tmResponse = await fetch(upstream.toString());
+  } catch (e) {
+    return { ok: false, status: 502, error: 'upstream_unreachable', message: 'Could not reach the events provider.' };
+  }
+
+  if (tmResponse.status === 401 || tmResponse.status === 403) {
+    return { ok: false, status: 502, error: 'upstream_auth_failed', message: 'Events provider rejected the request.' };
+  }
+  if (tmResponse.status === 429) {
+    return {
+      ok: false,
+      status: 429,
+      error: 'rate_limited',
+      message: 'Events provider rate limit reached, try again shortly.',
+    };
+  }
+  if (!tmResponse.ok) {
+    return { ok: false, status: 502, error: 'upstream_error', message: 'Events provider returned an error.' };
+  }
+
+  let data;
+  try {
+    data = await tmResponse.json();
+  } catch (e) {
+    return {
+      ok: false,
+      status: 502,
+      error: 'upstream_bad_response',
+      message: 'Events provider returned an unexpected response.',
+    };
+  }
+
+  return { ok: true, rawEvents: (data._embedded && data._embedded.events) || [] };
 }
 
 async function handleEvents(request, env, ctx, origin) {
@@ -134,8 +206,6 @@ async function handleEvents(request, env, ctx, origin) {
       origin
     );
   }
-
-  const radius = parseRadius(params.get('radius'));
 
   const startDateTime = parseDateTime(params.get('startDateTime'));
   if (startDateTime === undefined) {
@@ -166,11 +236,12 @@ async function handleEvents(request, env, ctx, origin) {
   }
 
   // Cache on a normalized param set (rounded coordinates) so nearby, equivalent
-  // requests can share a cache entry and cut down on upstream API usage.
+  // requests can share a cache entry and cut down on upstream API usage. Radius
+  // isn't part of the key — it's not client-controlled anymore (see the tier
+  // loop below), and the cached body already records whichever tier was used.
   const cacheParams = new URLSearchParams();
   cacheParams.set('lat', lat.toFixed(3));
   cacheParams.set('lon', lon.toFixed(3));
-  cacheParams.set('radius', String(radius));
   if (startDateTime) cacheParams.set('startDateTime', startDateTime);
   if (endDateTime) cacheParams.set('endDateTime', endDateTime);
   if (locale) cacheParams.set('locale', locale);
@@ -185,60 +256,38 @@ async function handleEvents(request, env, ctx, origin) {
     return jsonResponse(await cached.json(), 200, origin);
   }
 
-  const upstream = new URL(TICKETMASTER_BASE);
-  upstream.searchParams.set('apikey', env.TICKETMASTER_API_KEY);
-  upstream.searchParams.set('latlong', `${lat},${lon}`);
-  upstream.searchParams.set('radius', String(radius));
-  upstream.searchParams.set('unit', 'km');
-  upstream.searchParams.set('sort', 'date,asc');
-  upstream.searchParams.set('size', String(RESULT_SIZE));
-  if (startDateTime) upstream.searchParams.set('startDateTime', startDateTime);
-  if (endDateTime) upstream.searchParams.set('endDateTime', endDateTime);
-  if (locale) upstream.searchParams.set('locale', locale);
-  if (keyword) upstream.searchParams.set('keyword', keyword);
-
-  let tmResponse;
-  try {
-    tmResponse = await fetch(upstream.toString());
-  } catch (e) {
-    return jsonResponse(
-      { error: 'upstream_unreachable', message: 'Could not reach the events provider.' },
-      502,
-      origin
-    );
+  // Start at the narrowest radius and widen only on zero results — keeps
+  // results close to the destination whenever coverage allows it, but still
+  // finds something for smaller cities/towns Ticketmaster covers thinly. A
+  // hard failure (network/auth/rate-limit/bad response) stops the loop
+  // immediately, since a bigger radius won't fix any of those.
+  const searchParams = { startDateTime, endDateTime, locale, keyword };
+  let rawEvents = [];
+  let radiusUsedKm = null;
+  for (const radiusKm of RADIUS_TIERS_KM) {
+    const result = await searchTicketmasterOnce(lat, lon, radiusKm, searchParams, env);
+    if (!result.ok) {
+      return jsonResponse({ error: result.error, message: result.message }, result.status, origin);
+    }
+    radiusUsedKm = radiusKm;
+    if (result.rawEvents.length > 0) {
+      rawEvents = result.rawEvents;
+      break;
+    }
   }
 
-  if (tmResponse.status === 401 || tmResponse.status === 403) {
-    return jsonResponse(
-      { error: 'upstream_auth_failed', message: 'Events provider rejected the request.' },
-      502,
-      origin
-    );
-  }
-  if (tmResponse.status === 429) {
-    return jsonResponse(
-      { error: 'rate_limited', message: 'Events provider rate limit reached, try again shortly.' },
-      429,
-      origin
-    );
-  }
-  if (!tmResponse.ok) {
-    return jsonResponse({ error: 'upstream_error', message: 'Events provider returned an error.' }, 502, origin);
-  }
+  // Sort by distance from the searched city first (so a wide fallback radius
+  // still leads with the closest matches), then by date/time.
+  const events = rawEvents.map((ev) => normalizeEvent(ev, lat, lon)).sort((a, b) => {
+    const da = a.distanceKm ?? Infinity;
+    const db = b.distanceKm ?? Infinity;
+    if (da !== db) return da - db;
+    const ta = `${a.startDate || ''}T${a.startTime || '00:00:00'}`;
+    const tb = `${b.startDate || ''}T${b.startTime || '00:00:00'}`;
+    return ta < tb ? -1 : ta > tb ? 1 : 0;
+  });
 
-  let data;
-  try {
-    data = await tmResponse.json();
-  } catch (e) {
-    return jsonResponse(
-      { error: 'upstream_bad_response', message: 'Events provider returned an unexpected response.' },
-      502,
-      origin
-    );
-  }
-
-  const rawEvents = (data._embedded && data._embedded.events) || [];
-  const body = { events: rawEvents.map(normalizeEvent) };
+  const body = { events, radiusKm: radiusUsedKm };
 
   const cacheResponse = new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}` },

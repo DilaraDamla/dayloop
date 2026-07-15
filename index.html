@@ -227,6 +227,7 @@
   .event-date{color:var(--accent2);font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;}
   .event-name{font-weight:700;font-size:0.9rem;line-height:1.32;}
   .event-venue{color:var(--muted);font-size:0.78rem;}
+  .event-distance{color:var(--muted);font-size:0.74rem;}
   .event-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:10px;gap:8px;flex-wrap:wrap;}
   .event-source{color:var(--muted);font-size:0.7rem;}
   .event-ticket-btn{background:var(--accent);color:var(--accent-contrast);border:none;border-radius:8px;padding:7px 12px;font-size:0.78rem;font-weight:700;text-decoration:none;white-space:nowrap;}
@@ -543,7 +544,8 @@ const STRINGS = {
     open_maps_short:"View on map",
     upcoming_events_label:"🌙 Nearby tonight", events_search_placeholder:"Search events (artist, venue…)",
     events_loading:"Loading events…",
-    events_none_found:"No upcoming events found nearby.", get_ticket:"Get ticket", event_free:"Free",
+    events_none_found:"No live events found near this destination.", get_ticket:"Get ticket", event_free:"Free",
+    event_distance_away:"{km} km away",
     events_fallback_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
     map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
@@ -644,7 +646,8 @@ const STRINGS = {
     open_maps_short:"Haritada gör",
     upcoming_events_label:"🌙 Bu akşam yakında", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
     events_loading:"Etkinlikler yükleniyor…",
-    events_none_found:"Yakında yaklaşan bir etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
+    events_none_found:"Bu varış noktasının yakınında canlı etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
+    event_distance_away:"{km} km uzaklıkta",
     events_fallback_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
@@ -802,11 +805,33 @@ function buildEventsSearchURL(center){
 function eventsProxyConfigured(){
   return !!EVENTS_PROXY_URL && !EVENTS_PROXY_URL.includes('REPLACE_WITH_YOUR_WORKER_URL');
 }
+// Ticketmaster's startDateTime/endDateTime are UTC. We don't look up the destination's
+// timezone (no timezone API in this app — same simplification formatEventDate already
+// makes), so the selected date/time is treated as browser-local and converted to UTC.
+// Good enough to respect the selected day/window; not minute-perfect across timezones.
+// Using the numeric Date constructor (not a template string) so a minuteOfDay past
+// 1439 correctly rolls into the next day instead of producing an invalid time.
+function planTimeToUTC(dateStr, minuteOfDay){
+  if(!dateStr || minuteOfDay==null) return null;
+  const [y,m,d] = dateStr.split('-').map(Number);
+  if(!y || !m || !d) return null;
+  const dt = new Date(y, m-1, d, 0, minuteOfDay);
+  if(isNaN(dt.getTime())) return null;
+  return dt.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
 // Returns null on "can't get real events" (not configured, network error, proxy error, bad
 // response) so callers can fall back to the search link; returns [] for "asked, got zero".
-async function fetchNearbyEvents(lat, lon, keyword){
+// `opts` may include: keyword, dateStr/startMin/endMin (the selected plan date/time
+// window — always the coordinates and window of the city the user actually searched,
+// never a fixed/previous location).
+async function fetchNearbyEvents(lat, lon, opts){
   if(!eventsProxyConfigured()) return null;
-  let url = `${EVENTS_PROXY_URL}/events?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius=25&locale=${encodeURIComponent(LANG==='tr' ? 'tr-tr' : 'en-us')}`;
+  const { keyword, dateStr, startMin, endMin } = opts || {};
+  let url = `${EVENTS_PROXY_URL}/events?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&locale=${encodeURIComponent(LANG==='tr' ? 'tr-tr' : 'en-us')}`;
+  const startDateTime = planTimeToUTC(dateStr, startMin);
+  const endDateTime = planTimeToUTC(dateStr, endMin);
+  if(startDateTime) url += `&startDateTime=${encodeURIComponent(startDateTime)}`;
+  if(endDateTime) url += `&endDateTime=${encodeURIComponent(endDateTime)}`;
   if(keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
   try{
     const res = await fetchWithTimeout(url, {}, 8000);
@@ -837,6 +862,13 @@ function eventSourceLabel(url){
     return host.split('.').slice(0,-1).join('.') || host;
   }catch(e){ return 'Ticketmaster'; }
 }
+// A wide fallback radius (see worker/src/index.js) can legitimately surface an event in
+// a neighboring city — always showing that city + distance here (never just for "far"
+// events) is what makes that honest rather than confusing.
+function formatDistanceKm(km){
+  const rounded = km < 10 ? Math.round(km*10)/10 : Math.round(km);
+  return t('event_distance_away', { km: rounded });
+}
 function renderEventCard(ev){
   const name = ev.name || '';
   const dateLabel = formatEventDate(ev.startDate, ev.startTime);
@@ -844,12 +876,14 @@ function renderEventCard(ev){
   const image = ev.image || '';
   const priceLabel = ev.priceMin!=null ? (ev.priceMin===0 ? t('event_free') : `${Math.round(ev.priceMin)}–${Math.round(ev.priceMax)} ${ev.priceCurrency||''}`) : '';
   const source = eventSourceLabel(ev.url);
+  const cityDistance = [ev.venueCity || '', ev.distanceKm!=null ? formatDistanceKm(ev.distanceKm) : ''].filter(Boolean).join(' · ');
   return `<div class="event-card">
     ${image ? `<img src="${escapeHtml(image)}" class="event-img" loading="lazy" alt="">` : ''}
     <div class="event-body">
       <div class="event-date">${escapeHtml(dateLabel)}</div>
       <div class="event-name">${escapeHtml(name)}</div>
       ${venue ? `<div class="event-venue">${escapeHtml(venue)}</div>` : ''}
+      ${cityDistance ? `<div class="event-distance">📍 ${escapeHtml(cityDistance)}</div>` : ''}
       <div class="event-foot">
         <span class="event-source">${escapeHtml(source)}${priceLabel?' · '+escapeHtml(priceLabel):''}</span>
         <a href="${escapeHtml(ev.url)}" target="_blank" class="event-ticket-btn">${escapeHtml(t('get_ticket'))}</a>
@@ -878,7 +912,7 @@ async function renderEventsSection(center, keyword){
   }
   $('events-search').style.display = '';
   strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
-  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, keyword);
+  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, { keyword, dateStr: useCenter.dateStr, startMin: useCenter.startMin, endMin: useCenter.endMin });
   if(events === null){ renderEventsFallback(strip, useCenter); return; }
   if(!events.length){
     strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
@@ -1261,7 +1295,9 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   } else {
     center = await geocodeCity(cityInput);
   }
-  renderEventsSection(center).catch(e=>console.warn('Events section failed to render:', e.message)); // fire-and-forget — populates independently of the rest of the plan
+  // Always the exact city just searched (never a fixed/previous location), plus the
+  // selected date/time window so events respect it too.
+  renderEventsSection({ ...center, dateStr, startMin, endMin }).catch(e=>console.warn('Events section failed to render:', e.message)); // fire-and-forget — populates independently of the rest of the plan
 
   setStatus(t('status_weather'));
   const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
@@ -1269,7 +1305,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
 
   setStatus(t('status_places'));
   const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
-  lastPOIContext = { center, pois };
+  lastPOIContext = { center, pois, dateStr, startMin, endMin };
   return { center, weather, pois };
 }
 
@@ -1503,8 +1539,8 @@ function renderManualBuilder(){
     chip.addEventListener('click', ()=>{ manualFilter = chip.dataset.cat; renderManualBuilder(); });
   });
   if(manualFilter==='events' && eventsProxyConfigured()){
-    const { center } = manualContext;
-    fetchNearbyEvents(center.lat, center.lon).then(events=>{
+    const { center, dateStr, startMin, endMin } = manualContext;
+    fetchNearbyEvents(center.lat, center.lon, { dateStr, startMin, endMin }).then(events=>{
       const slot = $('manual-events-slot');
       if(!slot) return; // user switched tabs before this resolved
       if(events && events.length) slot.innerHTML = `<div class="events-strip" style="grid-template-columns:repeat(2,1fr);">${events.map(renderEventCard).join('')}</div>`;
@@ -1698,7 +1734,7 @@ async function renderPopularPanel(){
       <a href="${buildEventsSearchURL(null)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
     return;
   }
-  const { center, pois } = lastPOIContext;
+  const { center, pois, dateStr, startMin, endMin } = lastPOIContext;
   const top = [...pois].sort((a,b)=>Object.keys(b.tags).length - Object.keys(a.tags).length).slice(0,8);
   let html = `<div class="note">${escapeHtml(t('popular_places_note'))}</div>`;
   html += top.map(p=>{
@@ -1714,7 +1750,7 @@ async function renderPopularPanel(){
   html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
   html += `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
   el.innerHTML = html;
-  const events = eventsProxyConfigured() ? await fetchNearbyEvents(center.lat, center.lon) : null;
+  const events = eventsProxyConfigured() ? await fetchNearbyEvents(center.lat, center.lon, { dateStr, startMin, endMin }) : null;
   const eventsSlot = document.createElement('div');
   if(events && events.length){
     eventsSlot.innerHTML = `<div class="events-strip" style="grid-template-columns:1fr;">${events.map(renderEventCard).join('')}</div>`;
