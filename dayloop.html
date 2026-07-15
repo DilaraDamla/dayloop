@@ -685,10 +685,8 @@ const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
 // Public URL of the DayLoop events proxy (Cloudflare Worker — see worker/README.md).
 // This URL is safe to ship in client code: it holds no secret, the Worker holds the
-// real Ticketmaster key server-side. Replace the placeholder below after deploying
-// the Worker (`npx wrangler deploy` from worker/, then paste the printed URL here).
-// Until it's a real deployed URL, events gracefully fall back to a search link.
-const EVENTS_PROXY_URL = 'https://REPLACE_WITH_YOUR_WORKER_URL.workers.dev';
+// real Ticketmaster key server-side.
+const EVENTS_PROXY_URL = 'https://dayloop-events-proxy.dayloop-dilara.workers.dev';
 const WALK_SPEED_KMH = 4.5;
 let currentPlan = null;
 let lastPOIContext = null;
