@@ -317,6 +317,7 @@
       <div>
         <label data-i18n="date_label">Date</label>
         <input type="text" id="date" readonly>
+        <div id="date-hint" class="mood-hint" style="display:none;margin:6px 0 0;" data-i18n="date_default_tomorrow_hint">Planning for tomorrow because today is almost over.</div>
       </div>
       <div>
         <label data-i18n="start_label">Start time</label>
@@ -468,6 +469,7 @@ const STRINGS = {
     subtitle:"Tell it where you are and how much time you've got. It builds the day.",
     city_label:"City or address", city_placeholder:"e.g. Lisbon, or 41.39,2.16",
     when_label:"When", date_label:"Date", start_label:"Start time", end_label:"End time",
+    date_default_tomorrow_hint:"Planning for tomorrow because today is almost over.",
     time_now2:"Right now, ~2 hours", time_nowday:"Right now, most of the day", time_custom:"Choose a specific time",
     mood_label:"Mood",
     mood_hint:"We'll build a plan for every mood below — pick the one that fits.",
@@ -568,6 +570,7 @@ const STRINGS = {
     subtitle:"Nerede olduğunu ve ne kadar vaktin olduğunu söyle, günü senin için kursun.",
     city_label:"Şehir veya adres", city_placeholder:"örn. Lizbon, ya da 41.39,2.16",
     when_label:"Ne zaman", date_label:"Tarih", start_label:"Başlangıç saati", end_label:"Bitiş saati",
+    date_default_tomorrow_hint:"Bugün neredeyse bitti, o yüzden yarını planlıyoruz.",
     time_now2:"Şimdi, ~2 saat", time_nowday:"Şimdi, günün geri kalanı", time_custom:"Belirli bir saat seç",
     mood_label:"Mod",
     mood_hint:"Aşağıda her mod için bir plan hazırlayacağız — sana uygun olanı seç.",
@@ -1286,13 +1289,31 @@ async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, v
 }
 
 // ---------- UI wiring ----------
-$('date').value = new Date().toISOString().slice(0,10);
+function localDateStr(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// By ~16:00 local, "today" barely has any day left to plan — default to tomorrow
+// instead so the itinerary engine isn't squeezed into a couple of hours, and say why.
+// This only sets the *initial* value: any explicit choice the user makes afterwards
+// (including picking today) is left alone — see the flatpickr onChange below.
+const now = new Date();
+if(now.getHours() >= 16){
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate()+1);
+  $('date').value = localDateStr(tomorrow);
+  $('date-hint').style.display = '';
+} else {
+  $('date').value = localDateStr(now);
+}
 
 // Native <input type=date/time> pickers can't be restyled beyond the input box itself —
 // flatpickr renders its own themeable calendar/time popup instead. Inputs are set to
 // readonly (see HTML) so the OS keyboard/native picker never fights it.
 if(typeof flatpickr !== 'undefined'){
-  flatpickr('#date', { dateFormat: 'Y-m-d', locale: LANG==='tr' ? 'tr' : undefined, minDate: 'today' });
+  flatpickr('#date', {
+    dateFormat: 'Y-m-d', locale: LANG==='tr' ? 'tr' : undefined, minDate: 'today',
+    onChange: () => { $('date-hint').style.display = 'none'; }, // any explicit pick (even "today") overrides the smart default
+  });
   flatpickr('#start-time', { enableTime: true, noCalendar: true, dateFormat: 'H:i', time_24hr: true });
   flatpickr('#end-time', { enableTime: true, noCalendar: true, dateFormat: 'H:i', time_24hr: true });
 }
@@ -1998,7 +2019,7 @@ applyI18n();
   const params = new URLSearchParams(location.search);
   if(!params.has('city')) return;
   $('city').value = params.get('city') || '';
-  if(params.has('date')) $('date').value = params.get('date');
+  if(params.has('date')){ $('date').value = params.get('date'); $('date-hint').style.display = 'none'; }
   if(params.has('start')) $('start-time').value = params.get('start');
   if(params.has('end')) $('end-time').value = params.get('end');
   if(params.has('vibe')){
