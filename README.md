@@ -96,8 +96,14 @@ browser (dayloop.html)  --GET /events-->  Cloudflare Worker  --Discovery API--> 
 - The Worker validates/clamps every query parameter, reads the Ticketmaster
   key from the `TICKETMASTER_API_KEY` Worker secret, calls the Discovery API
   server-side, and returns only the normalized fields the UI needs (id,
-  name, start date/time, venue, address, coordinates, image, ticket URL,
-  category, price).
+  name, start date/time, venue, venue city, distance from the searched city,
+  address, coordinates, image, ticket URL, category, price).
+- Every search uses the exact coordinates of whichever city the user just
+  searched — nothing is hardcoded to a fixed market/country. The Worker
+  starts at a 40 km radius and only widens to 80 km then 150 km if that
+  returns zero events, so smaller destinations still find something without
+  every search defaulting to a wide net. Results are sorted by distance from
+  the searched city, then by date/time.
 - CORS on the Worker is restricted to `https://dilaradamla.github.io` plus
   local dev origins.
 - See [`worker/README.md`](worker/README.md) for the full API contract,
@@ -132,7 +138,7 @@ local dev origins allowed by the Worker's CORS config can reach. Point
 it directly:
 
 ```sh
-curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784&radius=25"
+curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784"
 ```
 
 ## Contributing / working in this repo
