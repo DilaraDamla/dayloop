@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// DayLoop Firestore security rules.
+//
+// Data model in use by dayloop.html (verified against the actual read/write
+// call sites, not assumed): saved plans live at users/{userId}/plans/{planId}.
+//   - write: fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(entry.id)).set(entry)
+//   - read:  fbDb.collection('users').doc(fbUser.uid).collection('plans').orderBy('id','desc').limit(20).get()
+// In both cases {userId} is always the caller's own Firebase Auth UID
+// (fbUser.uid comes from onAuthStateChanged, never from user-editable input).
+//
+// NOT deployed by this change — see README.md "Security" section for the
+// manual deploy step required before these rules take effect.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A user's own saved plans. Only the signed-in user whose auth UID
+    // matches {userId} may read or write documents under their own path;
+    // no other signed-in user, and no unauthenticated caller, can reach it.
+    match /users/{userId}/plans/{planId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny everything else by default. Firestore already denies any request
+    // that doesn't match an explicit `allow` rule, but this makes that
+    // default explicit for every other path, current or future.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
