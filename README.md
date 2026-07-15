@@ -34,9 +34,12 @@ No install required.
 - **Places** — Overpass API (OpenStreetMap) for cafes, restaurants, bars, museums, parks, etc.
 - **Routing** — a public OSRM "foot" instance, with a straight-line fallback
 - **Map** — Leaflet / OpenStreetMap tiles
-- **Events (currently disabled)** — designed to use the Ticketmaster Discovery
-  API, but no key is configured (see Security section below); every events
-  surface falls back to a search link instead
+- **Events** — real listings via the [Ticketmaster Discovery
+  API](https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/),
+  called through a small Cloudflare Worker proxy (see
+  [`worker/`](worker/)) so the API key never ships to the browser. If the
+  proxy URL isn't configured yet or is unreachable, every events surface
+  falls back to a search link instead (see Security section below)
 - **Accounts (optional)** — Firebase Auth + Firestore, for cross-device plan sync
 
 The itinerary engine (slot templates, vibe/weather/budget scoring, greedy
@@ -63,14 +66,74 @@ optional Firebase accounts on top of that foundation.
 - **Ticketmaster must never be called with a secret key directly from a
   public browser app.** A real Consumer Key was previously hardcoded in
   `dayloop.html`; that exposed it to every visitor and permanently in git
-  history. The key has been removed from source (see the comment above
-  `TICKETMASTER_API_KEY` in `dayloop.html`), and the **events integration
-  stays disabled** — every events surface falls back to a search link —
-  until a backend or serverless proxy is built to hold the key server-side.
-- **The old exposed key must still be rotated in the Ticketmaster developer
-  account.** Removing it from source does not invalidate it — it must be
-  revoked/rotated at https://developer.ticketmaster.com by whoever owns
-  that account. This is a manual step outside this repo.
+  history. Real event listings are restored through a small **Cloudflare
+  Worker proxy** (see [`worker/`](worker/)) that holds the key as a Worker
+  secret and calls the Discovery API server-side — the key never appears in
+  `dayloop.html`, any JavaScript sent to the browser, git history, or this
+  README. `dayloop.html` only ever talks to the Worker's public URL
+  (`EVENTS_PROXY_URL` near the top of the `<script>` block), which is safe
+  to ship in client code.
+- **⚠️ The previously exposed key is still compromised and must be
+  rotated.** Removing it from source, or standing up this proxy, does not
+  invalidate it — it must be revoked/rotated at
+  https://developer.ticketmaster.com by whoever owns that account, and only
+  the **new** key should ever be given to the Worker (via `wrangler secret
+  put`, never committed to source). This is a manual step outside this repo.
+- **If the Worker isn't deployed yet**, `EVENTS_PROXY_URL` in `dayloop.html`
+  is left as a placeholder and every events surface automatically falls back
+  to a search link — the rest of the app (weather, places, routing,
+  itinerary generation) is unaffected either way.
+
+### Secure events architecture
+
+```
+browser (dayloop.html)  --GET /events-->  Cloudflare Worker  --Discovery API-->  Ticketmaster
+                         <--JSON, no key--                    <--apikey secret--
+```
+
+- `dayloop.html` calls `${EVENTS_PROXY_URL}/events?lat=...&lon=...&...` —
+  no API key is ever present client-side.
+- The Worker validates/clamps every query parameter, reads the Ticketmaster
+  key from the `TICKETMASTER_API_KEY` Worker secret, calls the Discovery API
+  server-side, and returns only the normalized fields the UI needs (id,
+  name, start date/time, venue, address, coordinates, image, ticket URL,
+  category, price).
+- CORS on the Worker is restricted to `https://dilaradamla.github.io` plus
+  local dev origins.
+- See [`worker/README.md`](worker/README.md) for the full API contract,
+  local dev setup, and deployment steps.
+
+#### Deploying the Worker
+
+```sh
+cd worker
+npm install
+npx wrangler login
+npx wrangler secret put TICKETMASTER_API_KEY   # paste the *new*, rotated key when prompted
+npx wrangler deploy
+```
+
+Wrangler prints the deployed URL (e.g.
+`https://dayloop-events-proxy.<subdomain>.workers.dev`). Paste that URL into
+`EVENTS_PROXY_URL` near the top of the `<script>` block in `dayloop.html`,
+replacing the placeholder.
+
+#### Local testing
+
+```sh
+cd worker
+cp .dev.vars.example .dev.vars   # gitignored; put a real key only in this local file
+npm run dev
+```
+
+This runs the Worker locally (default `http://127.0.0.1:8787`), which the
+local dev origins allowed by the Worker's CORS config can reach. Point
+`EVENTS_PROXY_URL` at that local URL temporarily to test end-to-end, or curl
+it directly:
+
+```sh
+curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784&radius=25"
+```
 
 ## Contributing / working in this repo
 

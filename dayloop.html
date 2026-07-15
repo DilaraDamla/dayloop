@@ -107,6 +107,12 @@
   .weathercard .wtext div{color:var(--muted);font-size:0.85rem;margin-top:2px;}
   .summary{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;color:var(--muted);font-size:0.85rem;}
   .summary span{background:var(--panel2);border:1px solid var(--border);padding:6px 12px;border-radius:999px;}
+  .route-badge{cursor:help;border-color:var(--border);}
+  .route-badge.live{color:var(--accent2);border-color:rgba(var(--accent2-rgb),0.4);}
+  .planning-summary{display:flex;flex-direction:column;gap:8px;}
+  .planning-summary .ps-title{font-weight:700;font-size:0.95rem;margin-bottom:2px;}
+  .planning-summary .ps-item{display:flex;align-items:center;gap:8px;font-size:0.88rem;color:var(--text);}
+  .planning-summary .ps-item .ps-check{color:var(--accent2);font-weight:700;flex-shrink:0;}
   #mapview{height:300px;border-radius:var(--radius);margin-bottom:16px;border:1px solid var(--border);overflow:hidden;background:var(--panel2);}
   .dl-pin{background:var(--accent);color:var(--accent-contrast);font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);}
   .stop{
@@ -117,6 +123,8 @@
   .stop h3{margin:6px 0 4px; font-size:1.15rem; font-family:var(--font-display);}
   .stop .cat{color:var(--muted); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;}
   .stop .addr{color:var(--muted); font-size:0.88rem; margin-top:6px;}
+  .confidence-badge{display:inline-block;font-size:0.76rem;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:help;margin-top:6px;}
+  .confidence-note{color:var(--muted);font-size:0.8rem;margin-top:4px;}
   .stop-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
   .stop a.maplink{display:inline-block;font-size:0.85rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);padding:6px 12px;border-radius:8px;}
   .stop a.maplink:hover{border-color:var(--accent2);}
@@ -494,14 +502,31 @@ const STRINGS = {
     history_delete:"Delete", history_load:"View",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
-    footer_note:"Prototype — walking times are estimates, always double-check opening hours before you go.",
+    footer_note:"Built from live public map, weather, and routing data.",
     open_maps:"Map & reviews →", open_instagram:"Instagram →", nearby_word:"nearby",
+    planning_summary_title:"Planning Summary",
+    summary_weather_checked:"Weather checked",
+    summary_route_live:"Live walking route",
+    summary_route_calculated:"Route calculated",
+    summary_vibe_matched:"Picks matched to your vibe & budget",
+    summary_manual_picks:"Picks chosen by you",
+    summary_schedule_optimized:"Schedule optimized for minimal walking",
+    summary_manual_order:"Order set the way you arranged it",
+    badge_open:"🟢 Likely Open", badge_closed:"🔴 Likely Closed", badge_unknown:"🟡 Hours Unknown",
+    badge_open_title:"Based on the listed opening hours for this day and time.",
+    badge_closed_title:"Listed hours suggest this spot may be closed at your visit time.",
+    badge_unknown_title:"Opening hours could not be confirmed.",
+    oh_unknown_note:"Opening hours could not be confirmed.",
+    oh_closed_note:"May be closed at your planned visit time — worth a quick check.",
+    route_live_badge:"✓ Live Route", route_estimated_badge:"≈ Estimated Route",
+    route_live_title:"Walking times come from a real routing service.",
+    route_estimated_title:"Live routing wasn't available for this plan — times are estimated from straight-line distance.",
     compare_title:"Here's your day, four ways:",
     view_full_plan:"See this plan →", back_to_options:"← Back to all options",
     my_day_label:"My day", my_day_empty:"Nothing added yet — browse places below and tap + to add them.",
     manual_build_btn:"Build this plan", browse_label:"Places near you", filter_all:"All",
     add_label:"+ Add", added_label:"Added", browse_empty:"No places found in this category nearby.",
-    filter_events:"Events", manual_events_note:"We can't list live listings without a paid ticketing API — this opens a search for tickets and free events near you.",
+    filter_events:"Events", manual_events_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
     events_link:"🎟️ Get tickets & see events →",
     popular_title:"Popular nearby", popular_empty:"Search a location first — popular places will show up here once you do.",
     popular_places_note:"These are the most detailed listings in the map data near your last search — not a verified popularity ranking, since that data isn't freely available.",
@@ -509,7 +534,7 @@ const STRINGS = {
     upcoming_events_label:"🎉 Upcoming events near you", events_search_placeholder:"Search events (artist, venue…)",
     events_loading:"Loading events…",
     events_none_found:"No upcoming events found nearby.", get_ticket:"Get ticket", event_free:"Free",
-    events_fallback_note:"Real listings need a Ticketmaster API key — this opens a search for tickets and free events near you instead.",
+    events_fallback_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
     map_tap_hint:"Tap to interact with the map",
     signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
     name_label:"Name", name_placeholder:"e.g. Dilara",
@@ -576,14 +601,31 @@ const STRINGS = {
     history_delete:"Sil", history_load:"Görüntüle",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
-    footer_note:"Prototip — yürüyüş süreleri tahminidir, gitmeden önce açılış saatlerini mutlaka kontrol et.",
+    footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
     open_maps:"Harita ve yorumlar →", open_instagram:"Instagram →", nearby_word:"yakında",
+    planning_summary_title:"Plan Özeti",
+    summary_weather_checked:"Hava durumu kontrol edildi",
+    summary_route_live:"Canlı yürüyüş rotası",
+    summary_route_calculated:"Rota hesaplandı",
+    summary_vibe_matched:"Seçimler modun ve bütçenle eşleşti",
+    summary_manual_picks:"Seçimler senin tarafından yapıldı",
+    summary_schedule_optimized:"Program en az yürüyüşe göre optimize edildi",
+    summary_manual_order:"Sıralama senin düzenlediğin gibi",
+    badge_open:"🟢 Muhtemelen Açık", badge_closed:"🔴 Muhtemelen Kapalı", badge_unknown:"🟡 Saatler Belirsiz",
+    badge_open_title:"Bu gün ve saat için belirtilen çalışma saatlerine göre.",
+    badge_closed_title:"Belirtilen saatlere göre, planladığın ziyaret saatinde kapalı olabilir.",
+    badge_unknown_title:"Çalışma saatleri doğrulanamadı.",
+    oh_unknown_note:"Çalışma saatleri doğrulanamadı.",
+    oh_closed_note:"Planladığın saatte kapalı olabilir — kontrol etmekte fayda var.",
+    route_live_badge:"✓ Canlı Rota", route_estimated_badge:"≈ Tahmini Rota",
+    route_live_title:"Yürüyüş süreleri gerçek bir rota servisinden geliyor.",
+    route_estimated_title:"Bu plan için canlı rota alınamadı — süreler kuş uçuşu mesafeye göre tahmin edildi.",
     compare_title:"İşte günün, dört farklı şekilde:",
     view_full_plan:"Bu planı seç →", back_to_options:"← Tüm seçeneklere dön",
     my_day_label:"Günüm", my_day_empty:"Henüz bir şey eklemedin — aşağıdan yer seçip + ile ekle.",
     manual_build_btn:"Bu planı oluştur", browse_label:"Yakındaki yerler", filter_all:"Tümü",
     add_label:"+ Ekle", added_label:"Eklendi", browse_empty:"Bu kategoride yakında yer bulunamadı.",
-    filter_events:"Etkinlikler", manual_events_note:"Ücretli bir bilet API'si olmadan canlı etkinlik listesi gösteremiyoruz — bu, yakınındaki bilet ve ücretsiz etkinlikler için arama açar.",
+    filter_events:"Etkinlikler", manual_events_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
     popular_title:"Yakında popüler", popular_empty:"Önce bir konum ara — popüler yerler burada görünecek.",
     popular_places_note:"Bunlar son aradığın konuma yakın, harita verisinde en detaylı bilgiye sahip yerler — gerçek bir popülerlik verisi ücretsiz kaynaklarda yok, bu yüzden kesin bir sıralama değil.",
@@ -591,7 +633,7 @@ const STRINGS = {
     upcoming_events_label:"🎉 Yakındaki yaklaşan etkinlikler", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
     events_loading:"Etkinlikler yükleniyor…",
     events_none_found:"Yakında yaklaşan bir etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
-    events_fallback_note:"Gerçek etkinlik listesi için Ticketmaster API anahtarı gerekiyor — bunun yerine yakınındaki bilet ve ücretsiz etkinlikler için arama açılıyor.",
+    events_fallback_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     map_tap_hint:"Haritayla etkileşim için dokun",
     signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
     name_label:"İsim", name_placeholder:"örn. Dilara",
@@ -641,6 +683,10 @@ function escapeHtml(str){
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
+// Public URL of the DayLoop events proxy (Cloudflare Worker — see worker/README.md).
+// This URL is safe to ship in client code: it holds no secret, the Worker holds the
+// real Ticketmaster key server-side.
+const EVENTS_PROXY_URL = 'https://dayloop-events-proxy.dayloop-dilara.workers.dev';
 const WALK_SPEED_KMH = 4.5;
 let currentPlan = null;
 let lastPOIContext = null;
@@ -727,38 +773,36 @@ function buildEventsSearchURL(center){
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 }
 
-// ---------- real events (disabled — requires a backend or serverless proxy) ----------
-// Biletix has no public API to integrate against honestly. Ticketmaster's Discovery API
-// could provide real listings (name, date, venue, price, genuine ticket-purchase URL), but
-// it requires a secret Consumer Key. This is a static, keyless GitHub Pages app with no
-// backend — any key placed in this file ships to every visitor's browser and becomes
-// permanently public in git history the moment it's committed. That is exactly what
-// happened previously: a real key was hardcoded here, publicly exposed, and had to be
-// rotated. DO NOT paste a real (or placeholder) API key back into this file.
+// ---------- real events (via secure proxy) ----------
+// Ticketmaster's Discovery API can provide real listings (name, date, venue, price,
+// genuine ticket-purchase URL), but it requires a secret Consumer Key. This is a static,
+// keyless GitHub Pages app with no backend — any key placed in this file ships to every
+// visitor's browser and becomes permanently public in git history. That happened once
+// already (a real key was hardcoded here, publicly exposed, and had to be rotated).
+// DO NOT paste a real (or placeholder) API key back into this file.
 //
-// To re-enable real event listings safely: stand up a small backend or serverless
-// function that holds the Consumer Key server-side and proxies Discovery API requests,
-// then point fetchNearbyEvents() below at that proxy's URL instead of calling
-// app.ticketmaster.com directly. Until that exists, every "events" surface on the page
-// falls back to a search-link instead of showing an empty promise (see
-// renderEventsFallback / events_fallback_note).
-const TICKETMASTER_API_KEY = ''; // intentionally empty — see comment above, do not fill in
-function ticketmasterConfigured(){
-  return !!TICKETMASTER_API_KEY;
+// Real listings are restored via a small Cloudflare Worker (see worker/README.md) that
+// holds the Consumer Key server-side and proxies validated Discovery API requests. This
+// file only ever talks to that Worker's public URL (EVENTS_PROXY_URL above), which is
+// safe to ship in client code. If the Worker hasn't been deployed yet (placeholder URL)
+// or is unreachable, every "events" surface falls back to a search link instead of
+// showing an empty promise (see renderEventsFallback / events_fallback_note).
+function eventsProxyConfigured(){
+  return !!EVENTS_PROXY_URL && !EVENTS_PROXY_URL.includes('REPLACE_WITH_YOUR_WORKER_URL');
 }
-// Returns null on "can't get real events" (not configured, network error, CORS block, bad
+// Returns null on "can't get real events" (not configured, network error, proxy error, bad
 // response) so callers can fall back to the search link; returns [] for "asked, got zero".
-async function fetchNearbyEvents(lat, lon, size, keyword){
-  if(!ticketmasterConfigured()) return null;
-  let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&latlong=${lat},${lon}&radius=50&unit=km&sort=date,asc&size=${size||9}`;
+async function fetchNearbyEvents(lat, lon, keyword){
+  if(!eventsProxyConfigured()) return null;
+  let url = `${EVENTS_PROXY_URL}/events?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius=25&locale=${encodeURIComponent(LANG==='tr' ? 'tr-tr' : 'en-us')}`;
   if(keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
   try{
     const res = await fetchWithTimeout(url, {}, 8000);
     if(!res.ok) return null;
     const data = await res.json();
-    return (data._embedded && data._embedded.events) || [];
+    return Array.isArray(data.events) ? data.events : null;
   }catch(e){
-    console.warn('Ticketmaster fetch failed (network or CORS) — falling back to search link:', e.message);
+    console.warn('Events proxy fetch failed (network or CORS) — falling back to search link:', e.message);
     return null;
   }
 }
@@ -783,11 +827,10 @@ function eventSourceLabel(url){
 }
 function renderEventCard(ev){
   const name = ev.name || '';
-  const dateLabel = formatEventDate(ev.dates?.start?.localDate, ev.dates?.start?.localTime);
-  const venue = ev._embedded?.venues?.[0]?.name || '';
-  const image = (ev.images||[]).find(i=>i.width>=300 && i.width<=700)?.url || ev.images?.[0]?.url;
-  const price = ev.priceRanges?.[0];
-  const priceLabel = price ? (price.min===0 ? t('event_free') : `${Math.round(price.min)}–${Math.round(price.max)} ${price.currency||''}`) : '';
+  const dateLabel = formatEventDate(ev.startDate, ev.startTime);
+  const venue = ev.venueName || '';
+  const image = ev.image || '';
+  const priceLabel = ev.priceMin!=null ? (ev.priceMin===0 ? t('event_free') : `${Math.round(ev.priceMin)}–${Math.round(ev.priceMax)} ${ev.priceCurrency||''}`) : '';
   const source = eventSourceLabel(ev.url);
   return `<div class="event-card">
     ${image ? `<img src="${escapeHtml(image)}" class="event-img" loading="lazy" alt="">` : ''}
@@ -813,17 +856,17 @@ async function renderEventsSection(center, keyword){
   if(!useCenter) return;
   const section = $('events-section'), strip = $('events-strip');
   section.style.display = 'block';
-  // No secure events backend is configured (see TICKETMASTER_API_KEY comment above) —
-  // show the same fallback note/search-link used elsewhere instead of a live listing,
-  // and hide the now-nonfunctional search box rather than leave it visibly dead.
-  if(!ticketmasterConfigured()){
+  // No events proxy is configured yet (see EVENTS_PROXY_URL comment above) — show the
+  // same fallback note/search-link used elsewhere instead of a live listing, and hide
+  // the now-nonfunctional search box rather than leave it visibly dead.
+  if(!eventsProxyConfigured()){
     $('events-search').style.display = 'none';
     renderEventsFallback(strip, useCenter);
     return;
   }
   $('events-search').style.display = '';
   strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
-  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, 20, keyword);
+  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, keyword);
   if(events === null){ renderEventsFallback(strip, useCenter); return; }
   if(!events.length){
     strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
@@ -1206,7 +1249,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   } else {
     center = await geocodeCity(cityInput);
   }
-  renderEventsSection(center); // fire-and-forget — populates independently of the rest of the plan
+  renderEventsSection(center).catch(e=>console.warn('Events section failed to render:', e.message)); // fire-and-forget — populates independently of the rest of the plan
 
   setStatus(t('status_weather'));
   const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
@@ -1392,7 +1435,7 @@ function renderManualBuilder(){
     <div class="chip ${manualFilter==='events'?'active':''}" data-cat="events">🎟️ ${escapeHtml(t('filter_events'))}</div>
   </div>`;
   if(manualFilter==='events'){
-    if(ticketmasterConfigured()){
+    if(eventsProxyConfigured()){
       html += `<div id="manual-events-slot"><p class="mood-hint">${escapeHtml(t('events_loading'))}</p></div>`;
     } else {
       html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
@@ -1428,14 +1471,17 @@ function renderManualBuilder(){
   document.querySelectorAll('#manual-filter-chips .chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{ manualFilter = chip.dataset.cat; renderManualBuilder(); });
   });
-  if(manualFilter==='events' && ticketmasterConfigured()){
+  if(manualFilter==='events' && eventsProxyConfigured()){
     const { center } = manualContext;
-    fetchNearbyEvents(center.lat, center.lon, 20).then(events=>{
+    fetchNearbyEvents(center.lat, center.lon).then(events=>{
       const slot = $('manual-events-slot');
       if(!slot) return; // user switched tabs before this resolved
       if(events && events.length) slot.innerHTML = `<div class="events-strip" style="grid-template-columns:repeat(2,1fr);">${events.map(renderEventCard).join('')}</div>`;
       else if(events && !events.length) slot.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
       else renderEventsFallback(slot, center);
+    }).catch(()=>{
+      const slot = $('manual-events-slot');
+      if(slot) renderEventsFallback(slot, center);
     });
   }
 }
@@ -1637,7 +1683,7 @@ async function renderPopularPanel(){
   html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
   html += `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
   el.innerHTML = html;
-  const events = ticketmasterConfigured() ? await fetchNearbyEvents(center.lat, center.lon, 20) : null;
+  const events = eventsProxyConfigured() ? await fetchNearbyEvents(center.lat, center.lon) : null;
   const eventsSlot = document.createElement('div');
   if(events && events.length){
     eventsSlot.innerHTML = `<div class="events-strip" style="grid-template-columns:1fr;">${events.map(renderEventCard).join('')}</div>`;
@@ -1650,7 +1696,7 @@ async function renderPopularPanel(){
 }
 function openPopularPanel(){ $('popular-overlay').classList.add('open'); $('popular-panel').classList.add('open'); refreshPanelLock(); }
 function closePopularPanel(){ $('popular-overlay').classList.remove('open'); $('popular-panel').classList.remove('open'); refreshPanelLock(); }
-$('popular-fab').addEventListener('click', ()=>{ renderPopularPanel(); openPopularPanel(); });
+$('popular-fab').addEventListener('click', ()=>{ renderPopularPanel().catch(e=>console.warn('Popular panel failed to render:', e.message)); openPopularPanel(); });
 $('popular-close').addEventListener('click', closePopularPanel);
 $('popular-overlay').addEventListener('click', closePopularPanel);
 
@@ -1832,12 +1878,40 @@ function renderMap(center, stops, geometry){
 }
 
 // ---------- render ----------
+// Reuses isLikelyOpenAt's existing tri-state result (true/false/null) — no new heuristic,
+// just surfacing what scorePOI already computes internally but never showed the user.
+function stopConfidence(poi, dateStr, minuteOfDay){
+  const state = isLikelyOpenAt(poi.tags.opening_hours, dateStr, minuteOfDay % 1440);
+  if(state === true) return { cls:'open', label:t('badge_open'), title:t('badge_open_title'), note:null };
+  if(state === false) return { cls:'closed', label:t('badge_closed'), title:t('badge_closed_title'), note:t('oh_closed_note') };
+  return { cls:'unknown', label:t('badge_unknown'), title:t('badge_unknown_title'), note:t('oh_unknown_note') };
+}
+// Only lists things the app can actually verify for this specific plan — mirrors
+// currentPlan state rather than asserting anything new.
+function buildPlanningSummaryItems(plan){
+  const items = [t('summary_weather_checked')];
+  items.push(plan.routeGeometry ? t('summary_route_live') : t('summary_route_calculated'));
+  if(plan.vibe){
+    items.push(t('summary_vibe_matched'));
+    items.push(t('summary_schedule_optimized'));
+  } else {
+    items.push(t('summary_manual_picks'));
+    items.push(t('summary_manual_order'));
+  }
+  return items;
+}
+
 function render(){
   const { center, weather, stops, routeGeometry, totalWalkKm, totalWalkMin } = currentPlan;
   const emojiMap = { clear:'☀️', partly_cloudy:'⛅', foggy:'🌫️', rain:'🌧️', snow:'❄️', thunder:'⛈️' };
   const emoji = emojiMap[weather.codeKey] || '☀️';
 
-  let html = `<div class="card weathercard">
+  let html = `<div class="card planning-summary">
+    <div class="ps-title">${escapeHtml(t('planning_summary_title'))}</div>
+    ${buildPlanningSummaryItems(currentPlan).map(item=>`<div class="ps-item"><span class="ps-check">✓</span><span>${escapeHtml(item)}</span></div>`).join('')}
+  </div>`;
+
+  html += `<div class="card weathercard">
     <div class="emoji">${emoji}</div>
     <div class="wtext">
       <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
@@ -1847,12 +1921,14 @@ function render(){
 
   const placeLabel = center.label ? center.label.split(',').slice(0,2).join(',') : `${center.lat.toFixed(3)}, ${center.lon.toFixed(3)}`;
   html += `<div class="note">${escapeHtml(t('planning_around'))} <strong>${escapeHtml(placeLabel)}</strong></div>`;
-  html += `<a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
 
+  const routeLive = !!routeGeometry;
+  const routeTitle = routeLive ? t('route_live_title') : t('route_estimated_title');
   html += `<div class="summary">
     <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
     <span>🚶 ${totalWalkKm.toFixed(1)} km ${escapeHtml(t('summary_walk'))}</span>
     <span>⏱️ ${Math.round(totalWalkMin)} ${escapeHtml(t('min_unit'))}</span>
+    <span class="route-badge ${routeLive?'live':''}" tabindex="0" title="${escapeHtml(routeTitle)}" aria-label="${escapeHtml(routeTitle)}">${escapeHtml(routeLive ? t('route_live_badge') : t('route_estimated_badge'))}</span>
   </div>`;
 
   html += `<div id="mapview"></div>`;
@@ -1867,11 +1943,14 @@ function render(){
     const timeLabel = slotKey ? `${SLOT_EMOJI[slotKey]} ${escapeHtml(t('slot_'+slotKey))}` : `${CATEGORY_EMOJI[s.poi.category]||'📍'} ${escapeHtml(t('cat_'+s.poi.category))}`;
     const canSwap = s.candidates && s.candidates.length > 1;
     const igLink = placeInstagram(s.poi.tags);
+    const conf = stopConfidence(s.poi, currentPlan.dateStr, s.start);
     html += `<div class="stop">
       <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${timeLabel}</div>
       <h3>${escapeHtml(name)}</h3>
       <div class="cat">${escapeHtml(t('cat_'+s.poi.category))}</div>
       ${addr?`<div class="addr">${escapeHtml(addr)}</div>`:''}
+      <span class="confidence-badge ${conf.cls}" tabindex="0" title="${escapeHtml(conf.title)}" aria-label="${escapeHtml(conf.title)}">${escapeHtml(conf.label)}</span>
+      ${conf.note ? `<div class="confidence-note">${escapeHtml(conf.note)}</div>` : ''}
       <div class="stop-actions">
         <a class="maplink" target="_blank" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
         ${igLink ? `<a class="maplink" target="_blank" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}

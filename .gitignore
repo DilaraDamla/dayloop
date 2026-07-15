@@ -6,6 +6,11 @@
 .env.*
 *.local
 
+# Cloudflare Worker local secrets (see worker/.dev.vars.example)
+worker/.dev.vars
+worker/.dev.vars.*
+!worker/.dev.vars.example
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
