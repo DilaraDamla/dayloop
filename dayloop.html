@@ -683,6 +683,12 @@ function escapeHtml(str){
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
+// Public URL of the DayLoop events proxy (Cloudflare Worker — see worker/README.md).
+// This URL is safe to ship in client code: it holds no secret, the Worker holds the
+// real Ticketmaster key server-side. Replace the placeholder below after deploying
+// the Worker (`npx wrangler deploy` from worker/, then paste the printed URL here).
+// Until it's a real deployed URL, events gracefully fall back to a search link.
+const EVENTS_PROXY_URL = 'https://REPLACE_WITH_YOUR_WORKER_URL.workers.dev';
 const WALK_SPEED_KMH = 4.5;
 let currentPlan = null;
 let lastPOIContext = null;
@@ -769,38 +775,36 @@ function buildEventsSearchURL(center){
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 }
 
-// ---------- real events (disabled — requires a backend or serverless proxy) ----------
-// Biletix has no public API to integrate against honestly. Ticketmaster's Discovery API
-// could provide real listings (name, date, venue, price, genuine ticket-purchase URL), but
-// it requires a secret Consumer Key. This is a static, keyless GitHub Pages app with no
-// backend — any key placed in this file ships to every visitor's browser and becomes
-// permanently public in git history the moment it's committed. That is exactly what
-// happened previously: a real key was hardcoded here, publicly exposed, and had to be
-// rotated. DO NOT paste a real (or placeholder) API key back into this file.
+// ---------- real events (via secure proxy) ----------
+// Ticketmaster's Discovery API can provide real listings (name, date, venue, price,
+// genuine ticket-purchase URL), but it requires a secret Consumer Key. This is a static,
+// keyless GitHub Pages app with no backend — any key placed in this file ships to every
+// visitor's browser and becomes permanently public in git history. That happened once
+// already (a real key was hardcoded here, publicly exposed, and had to be rotated).
+// DO NOT paste a real (or placeholder) API key back into this file.
 //
-// To re-enable real event listings safely: stand up a small backend or serverless
-// function that holds the Consumer Key server-side and proxies Discovery API requests,
-// then point fetchNearbyEvents() below at that proxy's URL instead of calling
-// app.ticketmaster.com directly. Until that exists, every "events" surface on the page
-// falls back to a search-link instead of showing an empty promise (see
-// renderEventsFallback / events_fallback_note).
-const TICKETMASTER_API_KEY = ''; // intentionally empty — see comment above, do not fill in
-function ticketmasterConfigured(){
-  return !!TICKETMASTER_API_KEY;
+// Real listings are restored via a small Cloudflare Worker (see worker/README.md) that
+// holds the Consumer Key server-side and proxies validated Discovery API requests. This
+// file only ever talks to that Worker's public URL (EVENTS_PROXY_URL above), which is
+// safe to ship in client code. If the Worker hasn't been deployed yet (placeholder URL)
+// or is unreachable, every "events" surface falls back to a search link instead of
+// showing an empty promise (see renderEventsFallback / events_fallback_note).
+function eventsProxyConfigured(){
+  return !!EVENTS_PROXY_URL && !EVENTS_PROXY_URL.includes('REPLACE_WITH_YOUR_WORKER_URL');
 }
-// Returns null on "can't get real events" (not configured, network error, CORS block, bad
+// Returns null on "can't get real events" (not configured, network error, proxy error, bad
 // response) so callers can fall back to the search link; returns [] for "asked, got zero".
-async function fetchNearbyEvents(lat, lon, size, keyword){
-  if(!ticketmasterConfigured()) return null;
-  let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&latlong=${lat},${lon}&radius=50&unit=km&sort=date,asc&size=${size||9}`;
+async function fetchNearbyEvents(lat, lon, keyword){
+  if(!eventsProxyConfigured()) return null;
+  let url = `${EVENTS_PROXY_URL}/events?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius=25&locale=${encodeURIComponent(LANG==='tr' ? 'tr-tr' : 'en-us')}`;
   if(keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
   try{
     const res = await fetchWithTimeout(url, {}, 8000);
     if(!res.ok) return null;
     const data = await res.json();
-    return (data._embedded && data._embedded.events) || [];
+    return Array.isArray(data.events) ? data.events : null;
   }catch(e){
-    console.warn('Ticketmaster fetch failed (network or CORS) — falling back to search link:', e.message);
+    console.warn('Events proxy fetch failed (network or CORS) — falling back to search link:', e.message);
     return null;
   }
 }
@@ -825,11 +829,10 @@ function eventSourceLabel(url){
 }
 function renderEventCard(ev){
   const name = ev.name || '';
-  const dateLabel = formatEventDate(ev.dates?.start?.localDate, ev.dates?.start?.localTime);
-  const venue = ev._embedded?.venues?.[0]?.name || '';
-  const image = (ev.images||[]).find(i=>i.width>=300 && i.width<=700)?.url || ev.images?.[0]?.url;
-  const price = ev.priceRanges?.[0];
-  const priceLabel = price ? (price.min===0 ? t('event_free') : `${Math.round(price.min)}–${Math.round(price.max)} ${price.currency||''}`) : '';
+  const dateLabel = formatEventDate(ev.startDate, ev.startTime);
+  const venue = ev.venueName || '';
+  const image = ev.image || '';
+  const priceLabel = ev.priceMin!=null ? (ev.priceMin===0 ? t('event_free') : `${Math.round(ev.priceMin)}–${Math.round(ev.priceMax)} ${ev.priceCurrency||''}`) : '';
   const source = eventSourceLabel(ev.url);
   return `<div class="event-card">
     ${image ? `<img src="${escapeHtml(image)}" class="event-img" loading="lazy" alt="">` : ''}
@@ -855,17 +858,17 @@ async function renderEventsSection(center, keyword){
   if(!useCenter) return;
   const section = $('events-section'), strip = $('events-strip');
   section.style.display = 'block';
-  // No secure events backend is configured (see TICKETMASTER_API_KEY comment above) —
-  // show the same fallback note/search-link used elsewhere instead of a live listing,
-  // and hide the now-nonfunctional search box rather than leave it visibly dead.
-  if(!ticketmasterConfigured()){
+  // No events proxy is configured yet (see EVENTS_PROXY_URL comment above) — show the
+  // same fallback note/search-link used elsewhere instead of a live listing, and hide
+  // the now-nonfunctional search box rather than leave it visibly dead.
+  if(!eventsProxyConfigured()){
     $('events-search').style.display = 'none';
     renderEventsFallback(strip, useCenter);
     return;
   }
   $('events-search').style.display = '';
   strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
-  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, 20, keyword);
+  const events = await fetchNearbyEvents(useCenter.lat, useCenter.lon, keyword);
   if(events === null){ renderEventsFallback(strip, useCenter); return; }
   if(!events.length){
     strip.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
@@ -1248,7 +1251,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   } else {
     center = await geocodeCity(cityInput);
   }
-  renderEventsSection(center); // fire-and-forget — populates independently of the rest of the plan
+  renderEventsSection(center).catch(e=>console.warn('Events section failed to render:', e.message)); // fire-and-forget — populates independently of the rest of the plan
 
   setStatus(t('status_weather'));
   const weatherJson = await fetchWeather(center.lat, center.lon, dateStr);
@@ -1434,7 +1437,7 @@ function renderManualBuilder(){
     <div class="chip ${manualFilter==='events'?'active':''}" data-cat="events">🎟️ ${escapeHtml(t('filter_events'))}</div>
   </div>`;
   if(manualFilter==='events'){
-    if(ticketmasterConfigured()){
+    if(eventsProxyConfigured()){
       html += `<div id="manual-events-slot"><p class="mood-hint">${escapeHtml(t('events_loading'))}</p></div>`;
     } else {
       html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
@@ -1470,14 +1473,17 @@ function renderManualBuilder(){
   document.querySelectorAll('#manual-filter-chips .chip').forEach(chip=>{
     chip.addEventListener('click', ()=>{ manualFilter = chip.dataset.cat; renderManualBuilder(); });
   });
-  if(manualFilter==='events' && ticketmasterConfigured()){
+  if(manualFilter==='events' && eventsProxyConfigured()){
     const { center } = manualContext;
-    fetchNearbyEvents(center.lat, center.lon, 20).then(events=>{
+    fetchNearbyEvents(center.lat, center.lon).then(events=>{
       const slot = $('manual-events-slot');
       if(!slot) return; // user switched tabs before this resolved
       if(events && events.length) slot.innerHTML = `<div class="events-strip" style="grid-template-columns:repeat(2,1fr);">${events.map(renderEventCard).join('')}</div>`;
       else if(events && !events.length) slot.innerHTML = `<p class="mood-hint">${escapeHtml(t('events_none_found'))}</p>`;
       else renderEventsFallback(slot, center);
+    }).catch(()=>{
+      const slot = $('manual-events-slot');
+      if(slot) renderEventsFallback(slot, center);
     });
   }
 }
@@ -1679,7 +1685,7 @@ async function renderPopularPanel(){
   html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
   html += `<p class="mood-hint">${escapeHtml(t('events_loading'))}</p>`;
   el.innerHTML = html;
-  const events = ticketmasterConfigured() ? await fetchNearbyEvents(center.lat, center.lon, 20) : null;
+  const events = eventsProxyConfigured() ? await fetchNearbyEvents(center.lat, center.lon) : null;
   const eventsSlot = document.createElement('div');
   if(events && events.length){
     eventsSlot.innerHTML = `<div class="events-strip" style="grid-template-columns:1fr;">${events.map(renderEventCard).join('')}</div>`;
@@ -1692,7 +1698,7 @@ async function renderPopularPanel(){
 }
 function openPopularPanel(){ $('popular-overlay').classList.add('open'); $('popular-panel').classList.add('open'); refreshPanelLock(); }
 function closePopularPanel(){ $('popular-overlay').classList.remove('open'); $('popular-panel').classList.remove('open'); refreshPanelLock(); }
-$('popular-fab').addEventListener('click', ()=>{ renderPopularPanel(); openPopularPanel(); });
+$('popular-fab').addEventListener('click', ()=>{ renderPopularPanel().catch(e=>console.warn('Popular panel failed to render:', e.message)); openPopularPanel(); });
 $('popular-close').addEventListener('click', closePopularPanel);
 $('popular-overlay').addEventListener('click', closePopularPanel);
 

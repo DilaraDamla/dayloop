@@ -1,0 +1,4 @@
+# Copy this file to `.dev.vars` (already gitignored) for local `wrangler dev`
+# testing. Never put a real key in a file that isn't gitignored, and never
+# commit `.dev.vars` itself.
+TICKETMASTER_API_KEY=your-ticketmaster-consumer-key-here
