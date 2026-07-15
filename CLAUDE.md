@@ -15,7 +15,10 @@ not a chatbot transcript.
 ## Architecture (as of this writing)
 
 - **Single file**: everything (HTML, inline `<style>`, inline `<script>`)
-  lives in `dayloop.html`. No build step, no bundler, no package.json.
+  lives in `index.html` (the GitHub Pages entry point). No build step, no
+  bundler, no package.json. `dayloop.html` is a thin redirect stub kept only
+  so pre-rename bookmarks/share links still work — it has no app logic and
+  should never be edited to add functionality; edit `index.html` instead.
 - **No backend.** All data comes from client-side calls to third-party
   public APIs: Nominatim (geocoding), Open-Meteo (weather), Overpass
   (OSM places), a public OSRM instance (foot routing), Leaflet (map
@@ -40,13 +43,13 @@ not a chatbot transcript.
   (env/build-time injection, or a tiny backend proxy) once the project
   grows beyond a prototype.
 - `TICKETMASTER_API_KEY` has been **removed from current tracked source**
-  (`dayloop.html`) — it is now an intentionally empty sentinel, and events
+  (`index.html`) — it is now an intentionally empty sentinel, and events
   fall back to a search link until a backend/serverless proxy exists to
   hold a real key server-side. The previously exposed key is still
   **compromised** and must be treated as such: it was public in git history
   and on the live GitHub Pages deployment, so removing it from source does
   not neutralize it — it must be **rotated** in the Ticketmaster dashboard.
-- The Firebase web `apiKey` in `dayloop.html` remains **client-visible by
+- The Firebase web `apiKey` in `index.html` remains **client-visible by
   design** — Firebase's own docs say this config is meant to ship in public
   client code and is not a secret by itself.
 - Firestore authorization depends entirely on **correctly deployed Security
@@ -57,7 +60,7 @@ not a chatbot transcript.
 - **Never add private API secrets directly to browser-delivered code** —
   this app has no backend, so anything client-side is public to every
   visitor. A key that needs to stay secret requires a backend or
-  serverless proxy, not a place in `dayloop.html`.
+  serverless proxy, not a place in `index.html`.
 - Do not rewrite published git history to scrub secrets without explicit
   user approval — rotating the key matters more than hiding old commits.
 
@@ -90,7 +93,7 @@ not a chatbot transcript.
 ## Testing expectations
 
 There is no automated test suite. Before calling a change done:
-- Open `dayloop.html` in a browser (or serve it locally) and manually
+- Open `index.html` in a browser (or serve it locally) and manually
   exercise the flow you touched, including both language settings if you
   touched `STRINGS`/`t()`.
 - Check mobile width (~375px) for any UI change.
