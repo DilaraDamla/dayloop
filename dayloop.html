@@ -101,10 +101,11 @@
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:-2px;}
   @keyframes spin{to{transform:rotate(360deg);}}
   #result{display:none;}
-  .weathercard{display:flex;align-items:center;gap:14px;}
-  .weathercard .emoji{font-size:2.4rem;}
-  .weathercard .wtext strong{font-size:1.3rem;}
-  .weathercard .wtext div{color:var(--muted);font-size:0.85rem;margin-top:2px;}
+  .hero-title{font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin:2px 0 14px;color:var(--text);}
+  .weathercard{display:flex;align-items:center;gap:10px;padding:12px 16px;box-shadow:none;background:var(--panel2);}
+  .weathercard .emoji{font-size:1.4rem;}
+  .weathercard .wtext strong{font-size:0.9rem;font-weight:600;}
+  .weathercard .wtext div{color:var(--muted);font-size:0.78rem;margin-top:1px;}
   .summary{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:16px;color:var(--muted);font-size:0.85rem;}
   .summary span{background:var(--panel2);border:1px solid var(--border);padding:6px 12px;border-radius:999px;}
   .route-badge{cursor:help;border-color:var(--border);}
@@ -217,6 +218,8 @@
   .fab:active{transform:scale(0.95);}
   @media (prefers-reduced-motion: reduce){ .fab:hover,.fab:active{transform:none;} }
 
+  .events-section-compact{padding:14px 16px;box-shadow:none;background:var(--panel2);}
+  .events-section-compact label{margin-bottom:8px;}
   .events-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:2px;}
   .event-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
   .event-img{width:100%;height:110px;object-fit:cover;background:var(--panel);display:block;}
@@ -359,15 +362,19 @@
     <button type="button" class="manual-link" id="manual-btn" data-i18n="manual_btn">🖐️ Or pick the places yourself →</button>
   </div>
 
-  <div class="card" id="events-section" style="display:none;">
-    <label data-i18n="upcoming_events_label">🎉 Upcoming events near you</label>
+  <div id="error"></div>
+  <div id="status"></div>
+  <div id="result"></div>
+
+  <!-- Events are optional inspiration, not the plan itself — kept below the
+       itinerary+map so they never compete with the generated day for attention. -->
+  <div class="card events-section-compact" id="events-section" style="display:none;">
+    <label data-i18n="upcoming_events_label">🌙 Nearby tonight</label>
     <input type="text" id="events-search" data-i18n-placeholder="events_search_placeholder" placeholder="Search events (artist, venue…)" style="margin-bottom:12px;">
     <div id="events-strip"></div>
   </div>
 
-  <div id="error"></div>
-  <div id="status"></div>
-  <div id="result"></div>
+  <div id="plan-actions"></div>
 
   <footer>
     Place data © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors ·
@@ -504,6 +511,7 @@ const STRINGS = {
     summary_stops:"stops", summary_walk:"walking",
     footer_note:"Built from live public map, weather, and routing data.",
     open_maps:"Map & reviews →", open_instagram:"Instagram →", nearby_word:"nearby",
+    hero_title:"❤️ Your Day",
     planning_summary_title:"Planning Summary",
     summary_weather_checked:"Weather checked",
     summary_route_live:"Live walking route",
@@ -531,7 +539,7 @@ const STRINGS = {
     popular_title:"Popular nearby", popular_empty:"Search a location first — popular places will show up here once you do.",
     popular_places_note:"These are the most detailed listings in the map data near your last search — not a verified popularity ranking, since that data isn't freely available.",
     open_maps_short:"View on map",
-    upcoming_events_label:"🎉 Upcoming events near you", events_search_placeholder:"Search events (artist, venue…)",
+    upcoming_events_label:"🌙 Nearby tonight", events_search_placeholder:"Search events (artist, venue…)",
     events_loading:"Loading events…",
     events_none_found:"No upcoming events found nearby.", get_ticket:"Get ticket", event_free:"Free",
     events_fallback_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
@@ -603,6 +611,7 @@ const STRINGS = {
     summary_stops:"durak", summary_walk:"yürüyüş",
     footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
     open_maps:"Harita ve yorumlar →", open_instagram:"Instagram →", nearby_word:"yakında",
+    hero_title:"❤️ Senin Günün",
     planning_summary_title:"Plan Özeti",
     summary_weather_checked:"Hava durumu kontrol edildi",
     summary_route_live:"Canlı yürüyüş rotası",
@@ -630,7 +639,7 @@ const STRINGS = {
     popular_title:"Yakında popüler", popular_empty:"Önce bir konum ara — popüler yerler burada görünecek.",
     popular_places_note:"Bunlar son aradığın konuma yakın, harita verisinde en detaylı bilgiye sahip yerler — gerçek bir popülerlik verisi ücretsiz kaynaklarda yok, bu yüzden kesin bir sıralama değil.",
     open_maps_short:"Haritada gör",
-    upcoming_events_label:"🎉 Yakındaki yaklaşan etkinlikler", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
+    upcoming_events_label:"🌙 Bu akşam yakında", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
     events_loading:"Etkinlikler yükleniyor…",
     events_none_found:"Yakında yaklaşan bir etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
     events_fallback_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
@@ -1335,7 +1344,7 @@ function validateTimeInputs({ cityInput, startMin, endMin }){
 }
 
 async function planDay(){
-  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+  clearError(); $('result').style.display='none'; $('result').innerHTML=''; $('plan-actions').innerHTML='';
   currentPlan = null; manualContext = null;
   const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
   if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
@@ -1371,6 +1380,7 @@ async function planDay(){
 function planAgain(){
   $('result').style.display='none';
   $('result').innerHTML='';
+  $('plan-actions').innerHTML='';
   clearError();
   currentPlan = null; manualContext = null;
   document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1382,7 +1392,7 @@ let manualStops = [];
 let manualFilter = 'all';
 
 async function startManualMode(){
-  clearError(); $('result').style.display='none'; $('result').innerHTML='';
+  clearError(); $('result').style.display='none'; $('result').innerHTML=''; $('plan-actions').innerHTML='';
   currentPlan = null;
   const { cityInput, dateStr, startMin, endMin } = readTimeInputs();
   if(!validateTimeInputs({ cityInput, startMin, endMin })) return;
@@ -1906,32 +1916,10 @@ function render(){
   const emojiMap = { clear:'☀️', partly_cloudy:'⛅', foggy:'🌫️', rain:'🌧️', snow:'❄️', thunder:'⛈️' };
   const emoji = emojiMap[weather.codeKey] || '☀️';
 
-  let html = `<div class="card planning-summary">
-    <div class="ps-title">${escapeHtml(t('planning_summary_title'))}</div>
-    ${buildPlanningSummaryItems(currentPlan).map(item=>`<div class="ps-item"><span class="ps-check">✓</span><span>${escapeHtml(item)}</span></div>`).join('')}
-  </div>`;
-
-  html += `<div class="card weathercard">
-    <div class="emoji">${emoji}</div>
-    <div class="wtext">
-      <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
-      <div>${weather.indoorBias ? escapeHtml(t('weather_indoor_note')) : escapeHtml(t('weather_outdoor_note'))}</div>
-    </div>
-  </div>`;
-
-  const placeLabel = center.label ? center.label.split(',').slice(0,2).join(',') : `${center.lat.toFixed(3)}, ${center.lon.toFixed(3)}`;
-  html += `<div class="note">${escapeHtml(t('planning_around'))} <strong>${escapeHtml(placeLabel)}</strong></div>`;
-
-  const routeLive = !!routeGeometry;
-  const routeTitle = routeLive ? t('route_live_title') : t('route_estimated_title');
-  html += `<div class="summary">
-    <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
-    <span>🚶 ${totalWalkKm.toFixed(1)} km ${escapeHtml(t('summary_walk'))}</span>
-    <span>⏱️ ${Math.round(totalWalkMin)} ${escapeHtml(t('min_unit'))}</span>
-    <span class="route-badge ${routeLive?'live':''}" tabindex="0" title="${escapeHtml(routeTitle)}" aria-label="${escapeHtml(routeTitle)}">${escapeHtml(routeLive ? t('route_live_badge') : t('route_estimated_badge'))}</span>
-  </div>`;
-
-  html += `<div id="mapview"></div>`;
+  // The itinerary is the hero: heading + timeline come first with nothing between
+  // them, so it's the first thing a user reads after generating a plan. Everything
+  // else (map, weather, planning summary) supports it and follows below.
+  let html = `<h2 class="hero-title">${escapeHtml(t('hero_title'))}</h2>`;
 
   stops.forEach((s,i)=>{
     if(i>0){
@@ -1959,13 +1947,45 @@ function render(){
     </div>`;
   });
 
-  html += `<div class="share-row">
-    <button class="again" id="share-btn">${escapeHtml(t('share_btn'))}</button>
-    <button class="again" id="again-btn">${escapeHtml(t('again_btn'))}</button>
+  // Map follows the timeline immediately — it supports the story, it doesn't interrupt it.
+  html += `<div id="mapview"></div>`;
+
+  // Supporting details (planning summary, weather, location, quick stats) come after
+  // the timeline + map. Kept, just de-emphasized — the plan is the product, not this.
+  html += `<div class="card planning-summary">
+    <div class="ps-title">${escapeHtml(t('planning_summary_title'))}</div>
+    ${buildPlanningSummaryItems(currentPlan).map(item=>`<div class="ps-item"><span class="ps-check">✓</span><span>${escapeHtml(item)}</span></div>`).join('')}
+  </div>`;
+
+  html += `<div class="card weathercard">
+    <div class="emoji">${emoji}</div>
+    <div class="wtext">
+      <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
+      <div>${weather.indoorBias ? escapeHtml(t('weather_indoor_note')) : escapeHtml(t('weather_outdoor_note'))}</div>
+    </div>
+  </div>`;
+
+  const placeLabel = center.label ? center.label.split(',').slice(0,2).join(',') : `${center.lat.toFixed(3)}, ${center.lon.toFixed(3)}`;
+  html += `<div class="note">${escapeHtml(t('planning_around'))} <strong>${escapeHtml(placeLabel)}</strong></div>`;
+
+  const routeLive = !!routeGeometry;
+  const routeTitle = routeLive ? t('route_live_title') : t('route_estimated_title');
+  html += `<div class="summary">
+    <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
+    <span>🚶 ${totalWalkKm.toFixed(1)} km ${escapeHtml(t('summary_walk'))}</span>
+    <span>⏱️ ${Math.round(totalWalkMin)} ${escapeHtml(t('min_unit'))}</span>
+    <span class="route-badge ${routeLive?'live':''}" tabindex="0" title="${escapeHtml(routeTitle)}" aria-label="${escapeHtml(routeTitle)}">${escapeHtml(routeLive ? t('route_live_badge') : t('route_estimated_badge'))}</span>
   </div>`;
 
   $('result').innerHTML = html;
   $('result').style.display = 'block';
+
+  // Rendered into a separate container below the (optional) events section, so the
+  // "get an alternative day" action reads after nearby events, not before them.
+  $('plan-actions').innerHTML = `<div class="share-row">
+    <button class="again" id="share-btn">${escapeHtml(t('share_btn'))}</button>
+    <button class="again" id="again-btn">${escapeHtml(t('again_btn'))}</button>
+  </div>`;
   $('share-btn').addEventListener('click', onShareClick);
   $('again-btn').addEventListener('click', planAgain);
 
