@@ -2,7 +2,7 @@
 //
 // Holds the Ticketmaster Discovery API key server-side (as the
 // TICKETMASTER_API_KEY secret) and exposes a narrow, validated GET /events
-// endpoint that the public dayloop.html client can call safely. The key is
+// endpoint that the public index.html client can call safely. The key is
 // never returned to the client, logged, or embedded in any response.
 
 const ALLOWED_ORIGINS = new Set([

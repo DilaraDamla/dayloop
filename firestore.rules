@@ -2,7 +2,7 @@ rules_version = '2';
 
 // DayLoop Firestore security rules.
 //
-// Data model in use by dayloop.html (verified against the actual read/write
+// Data model in use by index.html (verified against the actual read/write
 // call sites, not assumed): saved plans live at users/{userId}/plans/{planId}.
 //   - write: fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(entry.id)).set(entry)
 //   - read:  fbDb.collection('users').doc(fbUser.uid).collection('plans').orderBy('id','desc').limit(20).get()
