@@ -8,24 +8,32 @@ and the app builds a walkable itinerary — cafés, food, activities, an
 evening stop — using live weather and map data, with routing, a map view,
 and share/save.
 
-Live deployment (GitHub Pages): https://dilaradamla.github.io/dayloop/dayloop.html
+Live deployment (GitHub Pages): https://dilaradamla.github.io/dayloop/
 
 ## Status
 
 Single-file prototype. Everything — markup, styles, and logic — lives in
-[`dayloop.html`](dayloop.html). There is no build step, package manager, or
+[`index.html`](index.html). There is no build step, package manager, or
 backend; it's meant to be opened directly or served as a static file.
+
+`dayloop.html` still exists as a thin redirect stub (see the comment at the
+top of that file) so old bookmarks/share links built before the app moved to
+`index.html` keep working — it forwards to `index.html` (preserving any query
+string) and contains no app logic. Don't add functionality there; the app is
+`index.html`.
 
 ## Running it locally
 
 No install required.
 
-- Double-click `dayloop.html` to open it directly (`file://`), **or**
+- Double-click `index.html` to open it directly (`file://`), **or**
 - Serve it so browser APIs behave consistently (recommended):
   ```
   npx serve .
   ```
-  or any static file server, then open the printed local URL.
+  or any static file server, then open the printed local URL — the root
+  (`/`) resolves to `index.html` automatically, matching the GitHub Pages
+  deployment.
 
 ## How it works
 
@@ -53,7 +61,7 @@ optional Firebase accounts on top of that foundation.
 ## Security
 
 - **Firebase web config is client-visible by design.** The `apiKey` in
-  `dayloop.html`'s `firebaseConfig` is not a secret — Firebase's own docs
+  `index.html`'s `firebaseConfig` is not a secret — Firebase's own docs
   say it's meant to ship in public client code. It only identifies which
   Firebase project to talk to; it grants no access by itself.
 - **Authorization is enforced by Firestore Security Rules, not by hiding
@@ -65,12 +73,12 @@ optional Firebase accounts on top of that foundation.
   console's Rules editor) before relying on them.
 - **Ticketmaster must never be called with a secret key directly from a
   public browser app.** A real Consumer Key was previously hardcoded in
-  `dayloop.html`; that exposed it to every visitor and permanently in git
+  `index.html`; that exposed it to every visitor and permanently in git
   history. Real event listings are restored through a small **Cloudflare
   Worker proxy** (see [`worker/`](worker/)) that holds the key as a Worker
   secret and calls the Discovery API server-side — the key never appears in
-  `dayloop.html`, any JavaScript sent to the browser, git history, or this
-  README. `dayloop.html` only ever talks to the Worker's public URL
+  `index.html`, any JavaScript sent to the browser, git history, or this
+  README. `index.html` only ever talks to the Worker's public URL
   (`EVENTS_PROXY_URL` near the top of the `<script>` block), which is safe
   to ship in client code.
 - **⚠️ The previously exposed key is still compromised and must be
@@ -79,7 +87,7 @@ optional Firebase accounts on top of that foundation.
   https://developer.ticketmaster.com by whoever owns that account, and only
   the **new** key should ever be given to the Worker (via `wrangler secret
   put`, never committed to source). This is a manual step outside this repo.
-- **If the Worker isn't deployed yet**, `EVENTS_PROXY_URL` in `dayloop.html`
+- **If the Worker isn't deployed yet**, `EVENTS_PROXY_URL` in `index.html`
   is left as a placeholder and every events surface automatically falls back
   to a search link — the rest of the app (weather, places, routing,
   itinerary generation) is unaffected either way.
@@ -87,11 +95,11 @@ optional Firebase accounts on top of that foundation.
 ### Secure events architecture
 
 ```
-browser (dayloop.html)  --GET /events-->  Cloudflare Worker  --Discovery API-->  Ticketmaster
+browser (index.html)    --GET /events-->  Cloudflare Worker  --Discovery API-->  Ticketmaster
                          <--JSON, no key--                    <--apikey secret--
 ```
 
-- `dayloop.html` calls `${EVENTS_PROXY_URL}/events?lat=...&lon=...&...` —
+- `index.html` calls `${EVENTS_PROXY_URL}/events?lat=...&lon=...&...` —
   no API key is ever present client-side.
 - The Worker validates/clamps every query parameter, reads the Ticketmaster
   key from the `TICKETMASTER_API_KEY` Worker secret, calls the Discovery API
@@ -121,7 +129,7 @@ npx wrangler deploy
 
 Wrangler prints the deployed URL (e.g.
 `https://dayloop-events-proxy.<subdomain>.workers.dev`). Paste that URL into
-`EVENTS_PROXY_URL` near the top of the `<script>` block in `dayloop.html`,
+`EVENTS_PROXY_URL` near the top of the `<script>` block in `index.html`,
 replacing the placeholder.
 
 #### Local testing

@@ -2,10 +2,10 @@
 
 A minimal Cloudflare Worker that holds the Ticketmaster Discovery API key
 server-side and exposes a narrow `GET /events` endpoint for the DayLoop
-frontend (`dayloop.html`) to call instead of hitting Ticketmaster directly
+frontend (`index.html`) to call instead of hitting Ticketmaster directly
 from the browser.
 
-Why this exists: `dayloop.html` is a static, keyless GitHub Pages app with no
+Why this exists: `index.html` is a static, keyless GitHub Pages app with no
 backend. Any secret placed directly in that file ships to every visitor and
 becomes permanently public in git history. This Worker is the "tiny backend
 proxy" that `CLAUDE.md` and the root `README.md` call out as the prerequisite
@@ -115,7 +115,7 @@ curl "http://127.0.0.1:8787/events?lat=41.0082&lon=28.9784"
 ```
 
 `http://localhost:*` and `http://127.0.0.1:*` are allowed CORS origins by
-default so a locally-served `dayloop.html` can call a locally-running Worker
+default so a locally-served `index.html` can call a locally-running Worker
 during development.
 
 ## Deploying
@@ -136,13 +136,13 @@ during development.
    ```
 4. Wrangler prints the deployed URL, typically
    `https://dayloop-events-proxy.<your-subdomain>.workers.dev`. Copy it.
-5. Paste that URL into `EVENTS_PROXY_URL` near the top of `dayloop.html`
+5. Paste that URL into `EVENTS_PROXY_URL` near the top of `index.html`
    (see the comment above that constant). Do **not** put a key there — only
    the Worker's public URL, which is safe to ship in client code.
 
 ## Rotating the key
 
-The Ticketmaster key that was previously hardcoded in `dayloop.html` is
+The Ticketmaster key that was previously hardcoded in `index.html` is
 compromised (it was public in git history and on the live GitHub Pages
 deployment) and must be rotated at
 https://developer.ticketmaster.com regardless of this Worker's existence.
