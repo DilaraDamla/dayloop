@@ -294,6 +294,7 @@
   <div class="topbar">
     <button id="auth-toggle" class="iconbtn" data-i18n="signin_btn">👤 Sign in</button>
     <button id="history-toggle" class="iconbtn" data-i18n="history_btn">🕘 Saved plans</button>
+    <button id="wishlist-toggle" class="iconbtn" data-i18n="wishlist_btn">♡ Wish List</button>
     <button id="lang-toggle" class="iconbtn">TR</button>
   </div>
   <header>
@@ -385,6 +386,15 @@
     Routing via <a href="https://routing.openstreetmap.de" target="_blank">OSRM</a><br>
     <span data-i18n="footer_note">Prototype — walking times are estimates, always double-check opening hours before you go.</span>
   </footer>
+</div>
+
+<div id="wishlist-overlay" class="overlay"></div>
+<div id="wishlist-panel" class="panel">
+  <div class="panel-head">
+    <h2 data-i18n="wishlist_title">Wish List</h2>
+    <button id="wishlist-close" class="iconbtn">✕</button>
+  </div>
+  <div id="wishlist-list"></div>
 </div>
 
 <div id="history-overlay" class="overlay"></div>
@@ -510,6 +520,8 @@ const STRINGS = {
     history_btn:"🕘 Saved plans", history_title:"Saved plans", history_empty:"No saved plans yet.",
     history_clear:"Clear all", history_clear_confirm:"Delete all saved plans?",
     history_delete:"Delete", history_load:"View",
+    wishlist_btn:"♡ Wish List", wishlist_title:"Wish List", wishlist_empty:"No saved places yet.",
+    wishlist_save:"♡ Save", wishlist_saved:"Saved", wishlist_remove:"Remove", wishlist_added:"Saved to your Wish List.", wishlist_duplicate:"This place is already in your Wish List.",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
     footer_note:"Built from live public map, weather, and routing data.",
@@ -612,6 +624,8 @@ const STRINGS = {
     history_btn:"🕘 Kayıtlı planlar", history_title:"Kayıtlı planlar", history_empty:"Henüz kayıtlı plan yok.",
     history_clear:"Tümünü temizle", history_clear_confirm:"Tüm kayıtlı planlar silinsin mi?",
     history_delete:"Sil", history_load:"Görüntüle",
+    wishlist_btn:"♡ İstek Listesi", wishlist_title:"İstek Listesi", wishlist_empty:"Henüz kaydedilmiş mekân yok.",
+    wishlist_save:"♡ Kaydet", wishlist_saved:"Kaydedildi", wishlist_remove:"Sil", wishlist_added:"İstek Listene kaydedildi.", wishlist_duplicate:"Bu mekân zaten İstek Listende.",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
     footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
@@ -1652,6 +1666,81 @@ async function onShareClick(){
   }
 }
 
+// ---------- wish list (localStorage) ----------
+const WISHLIST_KEY = 'dayloop_wishlist_v1';
+function loadWishList(){
+  try{ return JSON.parse(localStorage.getItem(WISHLIST_KEY)||'[]'); }catch(e){ return []; }
+}
+function wishPlaceKey(poi){
+  return `${Number(poi.lat).toFixed(6)},${Number(poi.lon).toFixed(6)}`;
+}
+function isWishSaved(poi){
+  const key = wishPlaceKey(poi);
+  return loadWishList().some(item=>item.key===key);
+}
+function saveWish(stopIndex, button){
+  const stop = currentPlan?.stops?.[stopIndex];
+  if(!stop) return;
+  const list = loadWishList();
+  const key = wishPlaceKey(stop.poi);
+  if(list.some(item=>item.key===key)){
+    showToast(t('wishlist_duplicate'));
+    return;
+  }
+  const city = currentPlan.center.label
+    ? currentPlan.center.label.split(',').slice(0,2).join(',')
+    : `${currentPlan.center.lat.toFixed(3)}, ${currentPlan.center.lon.toFixed(3)}`;
+  list.unshift({
+    key,
+    name:placeName(stop.poi.tags) || t('cat_'+stop.poi.category),
+    category:stop.poi.category,
+    city,
+    address:placeAddress(stop.poi.tags),
+  });
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+  if(button){ button.textContent=t('wishlist_saved'); button.disabled=true; }
+  showToast(t('wishlist_added'));
+}
+function renderWishList(){
+  const list = loadWishList();
+  const el = $('wishlist-list');
+  if(!list.length){
+    el.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">${escapeHtml(t('wishlist_empty'))}</p>`;
+    return;
+  }
+  el.innerHTML = list.map((item,index)=>`<div class="history-item">
+    <div class="hi-top"><span>${escapeHtml(t('cat_'+item.category))}</span><span>${escapeHtml(item.city)}</span></div>
+    <div class="hi-title">${escapeHtml(item.name)}</div>
+    ${item.address ? `<div class="addr">${escapeHtml(item.address)}</div>` : ''}
+    <div class="hi-actions"><button onclick="deleteWish(${index})">${escapeHtml(t('wishlist_remove'))}</button></div>
+  </div>`).join('');
+}
+function deleteWish(index){
+  const list = loadWishList();
+  list.splice(index,1);
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+  renderWishList();
+  if(currentPlan) render();
+}
+function openWishList(){
+  renderWishList();
+  $('wishlist-overlay').classList.add('open');
+  $('wishlist-panel').classList.add('open');
+  document.body.classList.add('panel-open');
+}
+function closeWishList(){
+  $('wishlist-overlay').classList.remove('open');
+  $('wishlist-panel').classList.remove('open');
+  const anotherPanelOpen = document.querySelector('.panel.open');
+  if(!anotherPanelOpen) document.body.classList.remove('panel-open');
+}
+$('wishlist-toggle').addEventListener('click', openWishList);
+$('wishlist-close').addEventListener('click', closeWishList);
+$('wishlist-overlay').addEventListener('click', closeWishList);
+$('lang-toggle').addEventListener('click', ()=>{
+  if($('wishlist-panel').classList.contains('open')) renderWishList();
+});
+
 // ---------- history (localStorage) ----------
 const HISTORY_KEY = 'dayloop_history_v1';
 function loadHistoryList(){
@@ -2000,6 +2089,7 @@ function render(){
         <a class="maplink" target="_blank" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
         ${igLink ? `<a class="maplink" target="_blank" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
         ${canSwap ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
+        <button class="swapbtn" onclick="saveWish(${i},this)" ${isWishSaved(s.poi)?'disabled':''}>${escapeHtml(t(isWishSaved(s.poi)?'wishlist_saved':'wishlist_save'))}</button>
       </div>
     </div>`;
   });
