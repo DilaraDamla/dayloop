@@ -53,11 +53,12 @@
   label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
   .row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
   .row > div{flex:1;min-width:140px;}
-  input[type=text],input[type=email],input[type=password],input[type=date],input[type=time],select{
+  input[type=text],input[type=email],input[type=password],input[type=date],input[type=time],select,textarea{
     width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
     background:var(--panel2); color:var(--text); font-size:16px; outline:none;
   }
-  input:focus,select:focus{border-color:var(--accent2);}
+  textarea{resize:vertical; font-family:inherit;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent2);}
   #city-wrap{position:relative;}
   .suggestions{
     position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--panel);
@@ -161,6 +162,9 @@
   .history-item .hi-title{font-weight:700;margin-bottom:8px;}
   .history-item .hi-actions{display:flex;gap:8px;}
   .history-item button{background:none;border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:8px;font-size:0.78rem;cursor:pointer;}
+  .import-row{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+  .import-row label{display:block;font-size:0.82rem;color:var(--muted);margin-bottom:6px;}
+  .import-row textarea{margin-bottom:8px;}
 
   .moods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:2px;}
   .mood{
@@ -397,6 +401,11 @@
     <h2 data-i18n="wishlist_title">Wish List</h2>
     <button id="wishlist-close" class="iconbtn">✕</button>
   </div>
+  <div class="import-row">
+    <label data-i18n="wishlist_import_label">Saw a place on Instagram? Paste the caption or link</label>
+    <textarea id="wishlist-import-input" rows="2" data-i18n-placeholder="wishlist_import_placeholder" placeholder="Paste the Instagram caption or post link…"></textarea>
+    <button class="locbtn" id="wishlist-import-btn" type="button" data-i18n="wishlist_import_btn">📸 Import from Instagram</button>
+  </div>
   <div id="wishlist-list"></div>
 </div>
 
@@ -526,6 +535,7 @@ const STRINGS = {
     wishlist_btn:"♡ Wish List", wishlist_title:"Wish List", wishlist_empty:"No saved places yet.",
     wishlist_save:"♡ Save", wishlist_saved:"Saved", wishlist_remove:"Remove", wishlist_added:"Saved to your Wish List.", wishlist_duplicate:"This place is already in your Wish List.",
     share_import_added:"Added from your share — building a day around it.", share_import_manual:"Couldn't read a place from what you shared — type it in below.", share_import_failed:"Couldn't find that place. Try typing it in below.",
+    wishlist_import_label:"Saw a place on Instagram? Paste the caption or link", wishlist_import_placeholder:"Paste the Instagram caption or post link…", wishlist_import_btn:"📸 Import from Instagram", wishlist_import_empty:"Paste something first.",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
     footer_note:"Built from live public map, weather, and routing data.",
@@ -631,6 +641,7 @@ const STRINGS = {
     wishlist_btn:"♡ İstek Listesi", wishlist_title:"İstek Listesi", wishlist_empty:"Henüz kaydedilmiş mekân yok.",
     wishlist_save:"♡ Kaydet", wishlist_saved:"Kaydedildi", wishlist_remove:"Sil", wishlist_added:"İstek Listene kaydedildi.", wishlist_duplicate:"Bu mekân zaten İstek Listende.",
     share_import_added:"Paylaşımından eklendi — etrafında bir gün planlanıyor.", share_import_manual:"Paylaştığın içerikten bir mekân çıkaramadık — aşağıya yazabilirsin.", share_import_failed:"O mekân bulunamadı. Aşağıya yazmayı dene.",
+    wishlist_import_label:"Instagram'da bir yer mi gördün? Açıklamayı veya linki yapıştır", wishlist_import_placeholder:"Instagram açıklamasını veya gönderi linkini yapıştır…", wishlist_import_btn:"📸 Instagram'dan içe aktar", wishlist_import_empty:"Önce bir şey yapıştır.",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
     footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
@@ -1757,6 +1768,15 @@ function closeWishList(){
 $('wishlist-toggle').addEventListener('click', openWishList);
 $('wishlist-close').addEventListener('click', closeWishList);
 $('wishlist-overlay').addEventListener('click', closeWishList);
+$('wishlist-import-btn').addEventListener('click', ()=>{
+  const text = $('wishlist-import-input').value.trim();
+  if(!text){ showToast(t('wishlist_import_empty')); return; }
+  const candidates = extractPlaceCandidatesFromShare(text, '');
+  if(!candidates.length){ showToast(t('share_import_manual')); return; }
+  $('wishlist-import-input').value = '';
+  closeWishList();
+  importSharedPlace(candidates);
+});
 $('lang-toggle').addEventListener('click', ()=>{
   if($('wishlist-panel').classList.contains('open')) renderWishList();
 });
