@@ -67,8 +67,9 @@ optional Firebase accounts on top of that foundation.
 - **Authorization is enforced by Firestore Security Rules, not by hiding
   the config.** See [`firestore.rules`](firestore.rules): only a signed-in
   user whose auth UID matches `{userId}` may read/write
-  `users/{userId}/plans/{planId}`, and every other path is denied by
-  default. **These rules are not deployed automatically** — deploy them via
+  `users/{userId}/plans/{planId}` and `users/{userId}/wishlist/{placeKey}`,
+  and every other path is denied by default. **These rules are not
+  deployed automatically** — deploy them via
   `firebase deploy --only firestore:rules` (or paste into the Firebase
   console's Rules editor) before relying on them.
 - **Ticketmaster must never be called with a secret key directly from a

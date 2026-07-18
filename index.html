@@ -560,13 +560,13 @@ const STRINGS = {
     event_distance_away:"{km} km away",
     events_fallback_note:"Live local events aren't available for this destination yet — here's a quick search instead.",
     map_tap_hint:"Tap to interact with the map",
-    signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans across devices.",
+    signin_btn:"👤 Sign in", signin_title:"Sign in", signin_hint:"Sign in to keep your saved plans and Wish List across devices.",
     name_label:"Name", name_placeholder:"e.g. Dilara",
     email_label:"Email", password_label:"Password",
     signin_action:"Sign in", signup_action:"Create account", google_action:"Sign in with Google",
     signed_in_label:"Account", signout_action:"Sign out",
     or_divider:"or", signup_prompt:"Don't have an account? Create one",
-    signin_prompt:"Already have an account? Sign in", signup_hint:"Create an account to keep your saved plans across devices.",
+    signin_prompt:"Already have an account? Sign in", signup_hint:"Create an account to keep your saved plans and Wish List across devices.",
     autherr_missing_fields:"Enter both an email and a password.",
     autherr_invalid_email:"That email address doesn't look right — check for typos.",
     autherr_email_in_use:"An account already exists with that email — try signing in instead.",
@@ -664,13 +664,13 @@ const STRINGS = {
     event_distance_away:"{km} km uzaklıkta",
     events_fallback_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     map_tap_hint:"Haritayla etkileşim için dokun",
-    signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye giriş yap.",
+    signin_btn:"👤 Giriş yap", signin_title:"Giriş yap", signin_hint:"Kayıtlı planların ve İstek Listen cihazlar arasında senkron olsun diye giriş yap.",
     name_label:"İsim", name_placeholder:"örn. Dilara",
     email_label:"E-posta", password_label:"Şifre",
     signin_action:"Giriş yap", signup_action:"Hesap oluştur", google_action:"Google ile giriş yap",
     signed_in_label:"Hesap", signout_action:"Çıkış yap",
     or_divider:"veya", signup_prompt:"Hesabın yok mu? Oluştur",
-    signin_prompt:"Zaten hesabın var mı? Giriş yap", signup_hint:"Kayıtlı planların cihazlar arasında senkron olsun diye hesap oluştur.",
+    signin_prompt:"Zaten hesabın var mı? Giriş yap", signup_hint:"Kayıtlı planların ve İstek Listen cihazlar arasında senkron olsun diye hesap oluştur.",
     autherr_missing_fields:"E-posta ve şifre alanlarını doldur.",
     autherr_invalid_email:"Bu e-posta adresi doğru görünmüyor — yazım hatası olabilir.",
     autherr_email_in_use:"Bu e-posta ile zaten bir hesap var — giriş yapmayı dene.",
@@ -1666,7 +1666,7 @@ async function onShareClick(){
   }
 }
 
-// ---------- wish list (localStorage) ----------
+// ---------- wish list (localStorage, synced to Firestore when signed in) ----------
 const WISHLIST_KEY = 'dayloop_wishlist_v1';
 function loadWishList(){
   try{ return JSON.parse(localStorage.getItem(WISHLIST_KEY)||'[]'); }catch(e){ return []; }
@@ -1690,14 +1690,20 @@ function saveWish(stopIndex, button){
   const city = currentPlan.center.label
     ? currentPlan.center.label.split(',').slice(0,2).join(',')
     : `${currentPlan.center.lat.toFixed(3)}, ${currentPlan.center.lon.toFixed(3)}`;
-  list.unshift({
+  const entry = {
     key,
+    addedAt: Date.now(),
     name:placeName(stop.poi.tags) || t('cat_'+stop.poi.category),
     category:stop.poi.category,
     city,
     address:placeAddress(stop.poi.tags),
-  });
+  };
+  list.unshift(entry);
   localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+  if(fbUser && fbDb){
+    fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).set(entry)
+      .catch(e=>console.warn('Cloud wishlist save failed:', e.message));
+  }
   if(button){ button.textContent=t('wishlist_saved'); button.disabled=true; }
   showToast(t('wishlist_added'));
 }
@@ -1708,17 +1714,19 @@ function renderWishList(){
     el.innerHTML = `<p style="color:var(--muted);font-size:0.85rem;">${escapeHtml(t('wishlist_empty'))}</p>`;
     return;
   }
-  el.innerHTML = list.map((item,index)=>`<div class="history-item">
+  el.innerHTML = list.map(item=>`<div class="history-item">
     <div class="hi-top"><span>${escapeHtml(t('cat_'+item.category))}</span><span>${escapeHtml(item.city)}</span></div>
     <div class="hi-title">${escapeHtml(item.name)}</div>
     ${item.address ? `<div class="addr">${escapeHtml(item.address)}</div>` : ''}
-    <div class="hi-actions"><button onclick="deleteWish(${index})">${escapeHtml(t('wishlist_remove'))}</button></div>
+    <div class="hi-actions"><button onclick="deleteWish('${item.key}')">${escapeHtml(t('wishlist_remove'))}</button></div>
   </div>`).join('');
 }
-function deleteWish(index){
-  const list = loadWishList();
-  list.splice(index,1);
-  localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
+function deleteWish(key){
+  localStorage.setItem(WISHLIST_KEY, JSON.stringify(loadWishList().filter(item=>item.key!==key)));
+  if(fbUser && fbDb){
+    fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).delete()
+      .catch(e=>console.warn('Cloud wishlist delete failed:', e.message));
+  }
   renderWishList();
   if(currentPlan) render();
 }
@@ -1884,6 +1892,7 @@ function onAuthStateChangedUI(user){
     $('auth-user-sub').textContent = user.displayName ? (user.email || '') : t('signed_in_label');
     $('auth-avatar').textContent = (displayName || '?').charAt(0).toUpperCase();
     syncCloudHistory();
+    syncCloudWishlist();
   } else {
     $('auth-toggle').textContent = t('signin_btn');
     $('auth-signed-out').style.display = 'block';
@@ -1930,6 +1939,18 @@ async function syncCloudHistory(){
     localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
     renderHistoryPanel();
   }catch(e){ console.warn('Cloud sync failed:', e.message); }
+}
+async function syncCloudWishlist(){
+  if(!fbUser || !fbDb) return;
+  try{
+    const snap = await fbDb.collection('users').doc(fbUser.uid).collection('wishlist').orderBy('addedAt','desc').limit(100).get();
+    const cloudEntries = snap.docs.map(d=>d.data());
+    const merged = [...cloudEntries, ...loadWishList()]
+      .filter((e,i,arr)=>arr.findIndex(x=>x.key===e.key)===i)
+      .sort((a,b)=>b.addedAt-a.addedAt);
+    localStorage.setItem(WISHLIST_KEY, JSON.stringify(merged));
+    if($('wishlist-panel').classList.contains('open')) renderWishList();
+  }catch(e){ console.warn('Cloud wishlist sync failed:', e.message); }
 }
 
 if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeof firebase !== 'undefined'){

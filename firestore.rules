@@ -3,10 +3,13 @@ rules_version = '2';
 // DayLoop Firestore security rules.
 //
 // Data model in use by index.html (verified against the actual read/write
-// call sites, not assumed): saved plans live at users/{userId}/plans/{planId}.
+// call sites, not assumed): saved plans live at users/{userId}/plans/{planId},
+// wish-listed places live at users/{userId}/wishlist/{placeKey}.
 //   - write: fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(entry.id)).set(entry)
 //   - read:  fbDb.collection('users').doc(fbUser.uid).collection('plans').orderBy('id','desc').limit(20).get()
-// In both cases {userId} is always the caller's own Firebase Auth UID
+//   - write: fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).set(entry)
+//   - read:  fbDb.collection('users').doc(fbUser.uid).collection('wishlist').orderBy('addedAt','desc').limit(100).get()
+// In all cases {userId} is always the caller's own Firebase Auth UID
 // (fbUser.uid comes from onAuthStateChanged, never from user-editable input).
 //
 // NOT deployed by this change — see README.md "Security" section for the
@@ -18,6 +21,11 @@ service cloud.firestore {
     // matches {userId} may read or write documents under their own path;
     // no other signed-in user, and no unauthenticated caller, can reach it.
     match /users/{userId}/plans/{planId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // A user's own wish-listed places. Same per-user isolation as plans above.
+    match /users/{userId}/wishlist/{placeKey} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
