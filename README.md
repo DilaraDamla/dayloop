@@ -49,6 +49,29 @@ No install required.
   proxy URL isn't configured yet or is unreachable, every events surface
   falls back to a search link instead (see Security section below)
 - **Accounts (optional)** — Firebase Auth + Firestore, for cross-device plan sync
+- **Wish List** — save individual places (from a generated itinerary, or
+  imported from outside the app, see below) to `localStorage`, synced to
+  Firestore's `users/{userId}/wishlist` when signed in
+
+### Importing a place shared from another app (e.g. Instagram)
+
+[`manifest.json`](manifest.json) declares a
+[Web Share Target](https://developer.mozilla.org/en-US/docs/Web/Manifest/Reference/share_target)
+(`GET`, params `share_title`/`share_text`/`share_url`), and
+[`sw.js`](sw.js) is a minimal service worker that exists solely to make the
+app installable — installability is a prerequisite for a site to register as
+a share target. Once a user installs DayLoop (Android/Chrome "Add to Home
+Screen"; **not supported on iOS Safari**, which has no Web Share Target
+API), it appears in the OS share sheet. Sharing an Instagram post to it
+lands on `index.html` with whatever raw title/caption/link Instagram sent —
+there is no structured place data and no Instagram API involved.
+`extractPlaceCandidatesFromShare()` in `index.html` makes a best-effort
+guess (strips URLs/emoji/hashtags, tries each line shortest-first through
+Nominatim) and, on the first line that geocodes, adds the place to the Wish
+List and immediately builds a full day plan centered on it
+(`importSharedPlace()`). If nothing geocodes, the raw text is left in the
+city field for the user to fix by hand — this is a heuristic, not a
+guarantee.
 
 The itinerary engine (slot templates, vibe/weather/budget scoring, greedy
 nearest-neighbor stop ordering) is plain JS, no framework.

@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DayLoop — plan your day, anywhere</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0f1115">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 <style>
@@ -510,7 +513,7 @@ const STRINGS = {
     planning_around:"📍 Planning around",
     cat_cafe:"Cafe", cat_restaurant:"Restaurant", cat_bar:"Bar", cat_nightclub:"Nightclub", cat_cinema:"Cinema",
     cat_museum:"Museum", cat_gallery:"Gallery", cat_park:"Park", cat_viewpoint:"Viewpoint", cat_artwork:"Public art",
-    cat_bakery:"Bakery", cat_ice_cream:"Ice cream", cat_shopping:"Shopping",
+    cat_bakery:"Bakery", cat_ice_cream:"Ice cream", cat_shopping:"Shopping", cat_place:"Place",
     slot_coffee:"Coffee", slot_activity:"Activity", slot_food:"Food", slot_evening:"Evening",
     weather_clear:"Clear", weather_partly_cloudy:"Partly cloudy", weather_foggy:"Foggy",
     weather_rain:"Rain likely", weather_snow:"Snow", weather_thunder:"Thunderstorms",
@@ -522,6 +525,7 @@ const STRINGS = {
     history_delete:"Delete", history_load:"View",
     wishlist_btn:"♡ Wish List", wishlist_title:"Wish List", wishlist_empty:"No saved places yet.",
     wishlist_save:"♡ Save", wishlist_saved:"Saved", wishlist_remove:"Remove", wishlist_added:"Saved to your Wish List.", wishlist_duplicate:"This place is already in your Wish List.",
+    share_import_added:"Added from your share — building a day around it.", share_import_manual:"Couldn't read a place from what you shared — type it in below.", share_import_failed:"Couldn't find that place. Try typing it in below.",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
     footer_note:"Built from live public map, weather, and routing data.",
@@ -614,7 +618,7 @@ const STRINGS = {
     planning_around:"📍 Planlanan konum",
     cat_cafe:"Kafe", cat_restaurant:"Restoran", cat_bar:"Bar", cat_nightclub:"Gece kulübü", cat_cinema:"Sinema",
     cat_museum:"Müze", cat_gallery:"Galeri", cat_park:"Park", cat_viewpoint:"Manzara noktası", cat_artwork:"Sokak sanatı",
-    cat_bakery:"Fırın", cat_ice_cream:"Dondurmacı", cat_shopping:"Alışveriş",
+    cat_bakery:"Fırın", cat_ice_cream:"Dondurmacı", cat_shopping:"Alışveriş", cat_place:"Mekân",
     slot_coffee:"Kahve", slot_activity:"Aktivite", slot_food:"Yemek", slot_evening:"Akşam",
     weather_clear:"Açık", weather_partly_cloudy:"Parçalı bulutlu", weather_foggy:"Sisli",
     weather_rain:"Yağmur ihtimali", weather_snow:"Kar", weather_thunder:"Gök gürültülü fırtına",
@@ -626,6 +630,7 @@ const STRINGS = {
     history_delete:"Sil", history_load:"Görüntüle",
     wishlist_btn:"♡ İstek Listesi", wishlist_title:"İstek Listesi", wishlist_empty:"Henüz kaydedilmiş mekân yok.",
     wishlist_save:"♡ Kaydet", wishlist_saved:"Kaydedildi", wishlist_remove:"Sil", wishlist_added:"İstek Listene kaydedildi.", wishlist_duplicate:"Bu mekân zaten İstek Listende.",
+    share_import_added:"Paylaşımından eklendi — etrafında bir gün planlanıyor.", share_import_manual:"Paylaştığın içerikten bir mekân çıkaramadık — aşağıya yazabilirsin.", share_import_failed:"O mekân bulunamadı. Aşağıya yazmayı dene.",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
     footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
@@ -1678,31 +1683,38 @@ function isWishSaved(poi){
   const key = wishPlaceKey(poi);
   return loadWishList().some(item=>item.key===key);
 }
-function saveWish(stopIndex, button){
-  const stop = currentPlan?.stops?.[stopIndex];
-  if(!stop) return;
+// Shared by both wishlisting a stop from a generated itinerary and importing
+// a place from outside the app (see importSharedPlace). Returns false without
+// writing anything if the place is already saved.
+function addToWishlist(poi, city){
   const list = loadWishList();
-  const key = wishPlaceKey(stop.poi);
-  if(list.some(item=>item.key===key)){
-    showToast(t('wishlist_duplicate'));
-    return;
-  }
-  const city = currentPlan.center.label
-    ? currentPlan.center.label.split(',').slice(0,2).join(',')
-    : `${currentPlan.center.lat.toFixed(3)}, ${currentPlan.center.lon.toFixed(3)}`;
+  const key = wishPlaceKey(poi);
+  if(list.some(item=>item.key===key)) return false;
   const entry = {
     key,
     addedAt: Date.now(),
-    name:placeName(stop.poi.tags) || t('cat_'+stop.poi.category),
-    category:stop.poi.category,
+    name:placeName(poi.tags) || t('cat_'+poi.category),
+    category:poi.category,
     city,
-    address:placeAddress(stop.poi.tags),
+    address:placeAddress(poi.tags),
   };
   list.unshift(entry);
   localStorage.setItem(WISHLIST_KEY, JSON.stringify(list));
   if(fbUser && fbDb){
     fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).set(entry)
       .catch(e=>console.warn('Cloud wishlist save failed:', e.message));
+  }
+  return true;
+}
+function saveWish(stopIndex, button){
+  const stop = currentPlan?.stops?.[stopIndex];
+  if(!stop) return;
+  const city = currentPlan.center.label
+    ? currentPlan.center.label.split(',').slice(0,2).join(',')
+    : `${currentPlan.center.lat.toFixed(3)}, ${currentPlan.center.lon.toFixed(3)}`;
+  if(!addToWishlist(stop.poi, city)){
+    showToast(t('wishlist_duplicate'));
+    return;
   }
   if(button){ button.textContent=t('wishlist_saved'); button.disabled=true; }
   showToast(t('wishlist_added'));
@@ -2160,10 +2172,61 @@ function render(){
   try{ renderMap(center, stops, routeGeometry); }catch(e){ console.warn('Map render failed:', e.message); }
 }
 
+// ---------- import a place shared from outside DayLoop (e.g. Instagram) ----------
+// manifest.json's share_target registers DayLoop (once installed) in the OS
+// share sheet. Android/Chrome then opens index.html with share_title/share_text/
+// share_url query params carrying whatever the source app sent — for an
+// Instagram post that's typically the caption plus a trailing post link, not
+// structured place data, so this is a best-effort guess, not a parser.
+// Returns candidate place-name guesses, shortest first — a caption's actual
+// place name is usually a short line (or the whole line, if that's all that
+// was shared), while surrounding sentences are longer and geocode poorly.
+function extractPlaceCandidatesFromShare(text, title){
+  const raw = (text || title || '').toString();
+  const noUrls = raw.replace(/https?:\/\/\S+/g, ' ');
+  const noEmoji = noUrls.replace(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ' ');
+  const noHashtags = noEmoji.replace(/#\S+/g, ' ');
+  const lines = noHashtags.split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>1);
+  return [...new Set(lines)].sort((a,b)=>a.split(' ').length - b.split(' ').length).slice(0,5);
+}
+async function importSharedPlace(candidates){
+  document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
+  for(const guess of candidates){
+    $('city').value = guess;
+    try{
+      const center = await geocodeCity(guess);
+      selectedCitySuggestion = center;
+      $('city').value = center.label.split(',').slice(0,2).join(',');
+      const parts = center.label.split(',').map(s=>s.trim());
+      const placeEntry = { lat: center.lat, lon: center.lon, tags: { name: parts[0] }, category: 'place' };
+      addToWishlist(placeEntry, parts.slice(1,3).join(', ') || parts[0]);
+      showToast(t('share_import_added'));
+      await planDay();
+      return;
+    }catch(e){ /* try the next candidate line */ }
+  }
+  showError(t('share_import_failed'));
+}
+
 // ---------- boot ----------
 applyI18n();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(e=>console.warn('Service worker registration failed:', e.message));
+}
 (function boot(){
   const params = new URLSearchParams(location.search);
+  const shareText = params.get('share_text');
+  const shareTitle = params.get('share_title');
+  if(shareText || shareTitle || params.has('share_url')){
+    history.replaceState(null, '', location.pathname); // consume the share payload from the URL
+    const candidates = extractPlaceCandidatesFromShare(shareText, shareTitle);
+    if(candidates.length){ importSharedPlace(candidates); }
+    else{
+      showToast(t('share_import_manual'));
+      document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+    return;
+  }
   if(!params.has('city')) return;
   $('city').value = params.get('city') || '';
   if(params.has('date')){ $('date').value = params.get('date'); $('date-hint').style.display = 'none'; }
