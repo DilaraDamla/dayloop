@@ -51,7 +51,7 @@ never as an invented price figure.
   1. **bakery_capital_0** (bakery) — tier: `core`, 45min, 0.15km from previous
   2. **gallery_capital_0** (gallery) — tier: `core`, 90min, 0.25km from previous
   3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.29km from previous
-  4. **cafe_capital_0** (cafe) — tier: `core`, 105min, 0.08km from previous
+  4. **cafe_capital_1** (cafe) — tier: `core`, 105min, 0.19km from previous
 
 **Per-stop explanations**
   1. This Bakery is close to your previous stop, keeping the route compact.
@@ -68,7 +68,7 @@ never as an invented price figure.
   - [PASS] every stop received a non-empty explanation — reasons=4
   - [PASS] no unsupported claims in any generated text — 
   - [PASS] no duplicate categories in a dense area — duplicateCategoryCount=0
-  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.27
+  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.30
   - [PASS] sufficient stop variety (no category repeats) — distinctCategories=4/4
 
 **Human-review notes (judgment, not asserted by any test):**
@@ -229,10 +229,10 @@ never as an invented price figure.
 - Slot template used: [coffee, activity, food, evening] · Stretch factor: 1×
 
 **Selected stops (4)**
-  1. **bakery_capital_0** (bakery) — tier: `core`, 45min, 0.15km from previous
-  2. **artwork_capital_0** (artwork) — tier: `core`, 90min, 0.08km from previous
-  3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.27km from previous
-  4. **bar_capital_0** (bar) — tier: `core`, 105min, 0.08km from previous
+  1. **bakery_capital_1** (bakery) — tier: `core`, 45min, 0.33km from previous
+  2. **artwork_capital_1** (artwork) — tier: `core`, 90min, 0.17km from previous
+  3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.34km from previous
+  4. **bar_capital_1** (bar) — tier: `core`, 105min, 0.33km from previous
 
 **Per-stop explanations**
   1. This Bakery is a lower-cost pick that fits your budget preference.
@@ -249,7 +249,7 @@ never as an invented price figure.
   - [PASS] every stop received a non-empty explanation — reasons=4
   - [PASS] no unsupported claims in any generated text — 
   - [PASS] no duplicate categories in a dense area — duplicateCategoryCount=0
-  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.20
+  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.40
   - [PASS] sufficient stop variety (no category repeats) — distinctCategories=4/4
 
 **Human-review notes (judgment, not asserted by any test):**
@@ -412,9 +412,9 @@ never as an invented price figure.
 - Slot template used: [coffee, activity, food, evening] · Stretch factor: 1×
 
 **Selected stops (4)**
-  1. **bakery_capital_0** (bakery) — tier: `core`, 45min, 0.15km from previous
-  2. **viewpoint_capital_0** (viewpoint) — tier: `core`, 90min, 0.15km from previous
-  3. **restaurant_capital_4** (restaurant) — tier: `core`, 90min, 0.73km from previous
+  1. **bakery_capital_1** (bakery) — tier: `core`, 45min, 0.33km from previous
+  2. **viewpoint_capital_1** (viewpoint) — tier: `core`, 90min, 0.32km from previous
+  3. **restaurant_capital_4** (restaurant) — tier: `core`, 90min, 0.77km from previous
   4. **Old Quarter Independent Theatre** (theatre) — tier: `core`, 105min, 0.31km from previous
 
 **Per-stop explanations**
@@ -432,7 +432,7 @@ never as an invented price figure.
   - [PASS] every stop received a non-empty explanation — reasons=4
   - [PASS] no unsupported claims in any generated text — 
   - [PASS] no duplicate categories in a dense area — duplicateCategoryCount=0
-  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.43
+  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.57
   - [PASS] sufficient stop variety (no category repeats) — distinctCategories=4/4
 
 **Human-review notes (judgment, not asserted by any test):**
@@ -598,7 +598,7 @@ never as an invented price figure.
   1. **bakery_capital_0** (bakery) — tier: `core`, 45min, 0.15km from previous
   2. **gallery_capital_0** (gallery) — tier: `core`, 90min, 0.25km from previous
   3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.29km from previous
-  4. **cafe_capital_0** (cafe) — tier: `core`, 105min, 0.08km from previous
+  4. **cafe_capital_1** (cafe) — tier: `core`, 105min, 0.19km from previous
 
 **Per-stop explanations**
   1. This Bakery keeps things indoors for today's weather.
@@ -615,7 +615,7 @@ never as an invented price figure.
   - [PASS] every stop received a non-empty explanation — reasons=4
   - [PASS] no unsupported claims in any generated text — 
   - [PASS] no duplicate categories in a dense area — duplicateCategoryCount=0
-  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.27
+  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.30
   - [PASS] sufficient stop variety (no category repeats) — distinctCategories=4/4
 
 **Human-review notes (judgment, not asserted by any test):**
@@ -776,10 +776,10 @@ never as an invented price figure.
 - Slot template used: [coffee, activity, food, evening] · Stretch factor: 1×
 
 **Selected stops (4)**
-  1. **bakery_capital_0** (bakery) — tier: `core`, 45min, 0.15km from previous
-  2. **artwork_capital_0** (artwork) — tier: `core`, 90min, 0.08km from previous
-  3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.27km from previous
-  4. **bar_capital_0** (bar) — tier: `core`, 105min, 0.08km from previous
+  1. **bakery_capital_1** (bakery) — tier: `core`, 45min, 0.33km from previous
+  2. **artwork_capital_1** (artwork) — tier: `core`, 90min, 0.17km from previous
+  3. **restaurant_capital_0** (restaurant) — tier: `core`, 90min, 0.34km from previous
+  4. **bar_capital_1** (bar) — tier: `core`, 105min, 0.33km from previous
 
 **Per-stop explanations**
   1. This Bakery is close to your previous stop, keeping the route compact.
@@ -796,7 +796,7 @@ never as an invented price figure.
   - [PASS] every stop received a non-empty explanation — reasons=4
   - [PASS] no unsupported claims in any generated text — 
   - [PASS] no duplicate categories in a dense area — duplicateCategoryCount=0
-  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.20
+  - [PASS] compact route (avg leg < 0.8km) — avgLegKm=0.40
   - [PASS] sufficient stop variety (no category repeats) — distinctCategories=4/4
 
 **Human-review notes (judgment, not asserted by any test):**

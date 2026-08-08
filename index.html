@@ -119,7 +119,10 @@
   .planning-summary .ps-item{display:flex;align-items:center;gap:8px;font-size:0.88rem;color:var(--text);}
   .planning-summary .ps-item .ps-check{color:var(--accent2);font-weight:700;flex-shrink:0;}
   #mapview{height:300px;border-radius:var(--radius);margin-bottom:16px;border:1px solid var(--border);overflow:hidden;background:var(--panel2);}
-  .dl-pin{background:var(--accent);color:var(--accent-contrast);font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);}
+  .dl-pin{background:var(--accent);color:var(--accent-contrast);font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
+  .dl-pin.focused{box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.45),0 1px 4px rgba(0,0,0,.3);}
+  .dl-pin-secondary{background:var(--panel2);color:var(--muted);font-weight:700;font-size:0.65rem;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.25);}
+  .stop.focused{outline:2px solid var(--accent2);outline-offset:2px;}
   .stop{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
     padding:18px; margin-bottom:12px; position:relative;
@@ -518,6 +521,7 @@ const STRINGS = {
     error_geoloc_unsupported:"Geolocation not supported in this browser.",
     error_geoloc_failed:"Could not get your location — type a city instead.",
     error_no_places:"Not enough map data for this location yet (common in smaller towns). Try a nearby bigger city or a different address.",
+    places_degraded_notice:"Live map data was unavailable — using places from your last nearby search instead.",
     error_no_matches:"Could not find enough matching places nearby for this vibe. Try a different vibe or a bigger city.",
     weather_indoor_note:"Leaning indoor for this plan because of the forecast.",
     weather_outdoor_note:"Good conditions — mixing in some outdoor stops.",
@@ -525,7 +529,7 @@ const STRINGS = {
     cat_cafe:"Cafe", cat_restaurant:"Restaurant", cat_bar:"Bar", cat_nightclub:"Nightclub", cat_cinema:"Cinema",
     cat_museum:"Museum", cat_gallery:"Gallery", cat_park:"Park", cat_viewpoint:"Viewpoint", cat_artwork:"Public art",
     cat_bakery:"Bakery", cat_ice_cream:"Ice cream", cat_shopping:"Shopping", cat_place:"Place",
-    cat_arts_centre:"Arts centre", cat_theatre:"Theatre", cat_escape_room:"Escape room", cat_bookstore:"Bookstore", cat_ferry_terminal:"Ferry terminal",
+    cat_arts_centre:"Arts centre", cat_theatre:"Theatre", cat_escape_room:"Escape room", cat_bookstore:"Bookstore", cat_ferry_terminal:"Ferry terminal", cat_event:"Event",
     slot_coffee:"Coffee", slot_activity:"Activity", slot_food:"Food", slot_evening:"Evening",
     weather_clear:"Clear", weather_partly_cloudy:"Partly cloudy", weather_foggy:"Foggy",
     weather_rain:"Rain likely", weather_snow:"Snow", weather_thunder:"Thunderstorms",
@@ -567,6 +571,14 @@ const STRINGS = {
     explain_intent_match_generic:"This {category} fits the day you're planning.",
     explain_intent_match_creative:"This {category} fits your creative, artistic pace for today.",
     explain_discovery:"This {category} is a distinctive local find, not just the nearest convenient option.",
+    explain_event:"This {category} is happening on your requested date and fits the vibe of the day.",
+    plan_explanation_title:"Why this day",
+    planexplain_weather_indoor:"Indoor activities were favored today because of the weather forecast.",
+    planexplain_vibe_excluded:"{categories} were excluded because they don't fit the requested vibe.",
+    planexplain_compact_route:"Stops were kept close together to minimize walking.",
+    planexplain_discovery:"At least one stop is a distinctive local venue rather than a generic default.",
+    planexplain_schedule_shifted:"One stop's timing was adjusted because it opens later than the original schedule.",
+    planexplain_event_fit:"A real event matching today's date and vibe was included.",
     summary_density_low:"Today's plan uses fewer, longer stops since nearby options were limited.",
     summary_density_high:"Today's plan spans a fuller day with varied stops nearby.",
     summary_density_medium:"Today's plan is paced to match what you asked for.",
@@ -592,6 +604,8 @@ const STRINGS = {
     cost_estimate_approx_note:"Approximate — DayLoop has no live price data, this is a rough guide based on venue type and your budget level, not confirmed prices.",
     cost_food_label:"Food", cost_coffee_label:"Coffee", cost_activities_label:"Activities", cost_transport_label:"Transport",
     cost_transport_walking_note:"This plan is fully walkable — no transport cost.",
+    cost_event_price_unknown:"Event ticket price wasn't provided — check the event link before you go.",
+    cost_event_label:"Event",
     cost_range_generic:"{tier} per person, roughly",
     // ---------- Sprint 6: optional, non-plan-altering suggestions ----------
     optional_touches_title:"Optional touches",
@@ -665,6 +679,7 @@ const STRINGS = {
     error_geoloc_unsupported:"Bu tarayıcı konum özelliğini desteklemiyor.",
     error_geoloc_failed:"Konumun alınamadı — bir şehir yaz.",
     error_no_places:"Bu konum için yeterli harita verisi yok henüz (küçük yerleşimlerde sık görülür). Yakındaki daha büyük bir şehri veya başka bir adresi dene.",
+    places_degraded_notice:"Canlı harita verisine ulaşılamadı — bunun yerine son yakın aramandaki yerler kullanılıyor.",
     error_no_matches:"Bu mod için yakında yeterli eşleşen yer bulunamadı. Farklı bir mod veya daha büyük bir şehir dene.",
     weather_indoor_note:"Hava durumu nedeniyle plan kapalı mekanlara ağırlık veriyor.",
     weather_outdoor_note:"Hava uygun — plana biraz dış mekan da katıyoruz.",
@@ -672,7 +687,7 @@ const STRINGS = {
     cat_cafe:"Kafe", cat_restaurant:"Restoran", cat_bar:"Bar", cat_nightclub:"Gece kulübü", cat_cinema:"Sinema",
     cat_museum:"Müze", cat_gallery:"Galeri", cat_park:"Park", cat_viewpoint:"Manzara noktası", cat_artwork:"Sokak sanatı",
     cat_bakery:"Fırın", cat_ice_cream:"Dondurmacı", cat_shopping:"Alışveriş", cat_place:"Mekân",
-    cat_arts_centre:"Sanat merkezi", cat_theatre:"Tiyatro", cat_escape_room:"Kaçış odası", cat_bookstore:"Kitabevi", cat_ferry_terminal:"Vapur iskelesi",
+    cat_arts_centre:"Sanat merkezi", cat_theatre:"Tiyatro", cat_escape_room:"Kaçış odası", cat_bookstore:"Kitabevi", cat_ferry_terminal:"Vapur iskelesi", cat_event:"Etkinlik",
     slot_coffee:"Kahve", slot_activity:"Aktivite", slot_food:"Yemek", slot_evening:"Akşam",
     weather_clear:"Açık", weather_partly_cloudy:"Parçalı bulutlu", weather_foggy:"Sisli",
     weather_rain:"Yağmur ihtimali", weather_snow:"Kar", weather_thunder:"Gök gürültülü fırtına",
@@ -714,6 +729,14 @@ const STRINGS = {
     explain_intent_match_generic:"Bu {category}, planladığın güne uyuyor.",
     explain_intent_match_creative:"Bu {category}, bugün için istediğin yaratıcı, sanatsal tempoya uyuyor.",
     explain_discovery:"Bu {category}, sadece en yakın seçenek değil, kendine özgü yerel bir keşif.",
+    explain_event:"Bu {category}, istediğin tarihte gerçekleşiyor ve günün moduna uyuyor.",
+    plan_explanation_title:"Bu günün nedeni",
+    planexplain_weather_indoor:"Bugün hava durumu tahmini nedeniyle kapalı mekan aktiviteleri tercih edildi.",
+    planexplain_vibe_excluded:"{categories}, istenen moda uymadığı için hariç tutuldu.",
+    planexplain_compact_route:"Yürüyüşü en aza indirmek için duraklar birbirine yakın tutuldu.",
+    planexplain_discovery:"En az bir durak, sıradan bir seçenek yerine kendine özgü yerel bir mekân.",
+    planexplain_schedule_shifted:"Bir durağın saati, orijinal planlanandan daha geç açıldığı için ayarlandı.",
+    planexplain_event_fit:"Bugünün tarihine ve moduna uyan gerçek bir etkinlik dahil edildi.",
     summary_density_low:"Yakında seçenek sınırlı olduğu için bugünkü plan daha az ve daha uzun duraklardan oluşuyor.",
     summary_density_high:"Bugünkü plan, çevredeki çeşitli duraklarla dolu dolu bir gün sunuyor.",
     summary_density_medium:"Bugünkü plan, istediğin tempoya göre ayarlandı.",
@@ -739,6 +762,8 @@ const STRINGS = {
     cost_estimate_approx_note:"Yaklaşık bir tahmin — DayLoop'ta canlı fiyat verisi yok, bu rakamlar mekân türüne ve bütçe seviyene göre kabaca bir fikir verir, gerçek fiyat değildir.",
     cost_food_label:"Yemek", cost_coffee_label:"Kahve", cost_activities_label:"Aktiviteler", cost_transport_label:"Ulaşım",
     cost_transport_walking_note:"Bu plan tamamen yürüyerek yapılabiliyor — ulaşım masrafı yok.",
+    cost_event_price_unknown:"Etkinlik bilet fiyatı belirtilmemiş — gitmeden önce etkinlik linkini kontrol et.",
+    cost_event_label:"Etkinlik",
     cost_range_generic:"Kişi başı yaklaşık {tier}",
     // ---------- Sprint 6: plana dahil olmayan, isteğe bağlı öneriler ----------
     optional_touches_title:"İsteğe bağlı dokunuşlar",
@@ -854,13 +879,16 @@ const CATEGORY_TAGS = {
 
 const INDOOR = new Set(['cafe','restaurant','bar','nightclub','cinema','museum','gallery','bakery','ice_cream','shopping','arts_centre','theatre','escape_room','bookstore']);
 const OUTDOOR = new Set(['park','viewpoint','artwork']);
+// 'event' is deliberately in NEITHER set — a real Ticketmaster event could be
+// indoor or outdoor and this app has no reliable signal either way, so
+// weather-driven demotion simply doesn't apply to it rather than guessing.
 const SLOT_EMOJI = { coffee:'☕', activity:'🎯', food:'🍽️', evening:'🌙' };
 const CATEGORY_EMOJI = { cafe:'☕', restaurant:'🍽️', bar:'🍸', nightclub:'🎉', cinema:'🎬', museum:'🏛️',
   gallery:'🖼️', park:'🌳', viewpoint:'👁️', artwork:'🎨', bakery:'🥐', ice_cream:'🍦', shopping:'🛍️',
-  arts_centre:'🎨', theatre:'🎭', escape_room:'🔐', bookstore:'📚', ferry_terminal:'⛴️' };
+  arts_centre:'🎨', theatre:'🎭', escape_room:'🔐', bookstore:'📚', ferry_terminal:'⛴️', event:'🎟️' };
 const CATEGORY_DURATION_MIN = { cafe:45, restaurant:90, bar:75, nightclub:120, cinema:120, museum:90,
   gallery:60, park:60, viewpoint:30, artwork:20, bakery:20, ice_cream:20, shopping:60,
-  arts_centre:75, theatre:120, escape_room:60, bookstore:30, ferry_terminal:20 };
+  arts_centre:75, theatre:120, escape_room:60, bookstore:30, ferry_terminal:20, event:120 };
 const VIBE_EMOJI = { romantic:'💕', chill:'😌', adventurous:'🧭', budget:'💸', creative:'🖌️' };
 // Categories that are never a genuine "experience" stop for any vibe —
 // infrastructure/transit points, not destinations in their own right. Kept
@@ -881,8 +909,11 @@ const VIBE_PROFILES = {
       activity: { core:['viewpoint','museum','gallery','park','arts_centre'], acceptable:[], lastResort:[] },
       food:     { core:['restaurant'], acceptable:['cafe'], lastResort:[] },
       // A theatre show is as legitimate a romantic-evening activity as a bar —
-      // added alongside it, not instead of it (Sprint 6 discovery pass).
-      evening:  { core:['bar','theatre'], acceptable:['cafe'], lastResort:['cinema'] },
+      // added alongside it, not instead of it (Sprint 6 discovery pass). A
+      // real, date-matched event (concert, performance) is an equally
+      // legitimate romantic-evening option (Sprint 7) — never mandatory,
+      // just another honest candidate that has to win on its own merits.
+      evening:  { core:['bar','theatre'], acceptable:['cafe','event'], lastResort:['cinema'] },
     },
     excluded: ['nightclub', ...UNIVERSALLY_EXCLUDED_CATEGORIES],
     preferredTraits: ['quiet','intimate','scenic'],
@@ -917,7 +948,7 @@ const VIBE_PROFILES = {
       // leaving "adventurous" implicitly meaning "outdoors only" (Sprint 6).
       activity: { core:['viewpoint','artwork','park','shopping','escape_room'], acceptable:['arts_centre','theatre','bookstore'], lastResort:[] },
       food:     { core:['restaurant'], acceptable:[], lastResort:[] },
-      evening:  { core:['bar','nightclub'], acceptable:[], lastResort:[] },
+      evening:  { core:['bar','nightclub'], acceptable:['event'], lastResort:[] },
     },
     excluded: [...UNIVERSALLY_EXCLUDED_CATEGORIES],
     preferredTraits: ['novel','active','exploratory'],
@@ -935,7 +966,13 @@ const VIBE_PROFILES = {
       // contradicts this vibe's own point.
       activity: { core:['park','viewpoint','artwork','ice_cream'], acceptable:['bookstore','arts_centre'], lastResort:[] },
       food:     { core:['restaurant','cafe','bakery'], acceptable:[], lastResort:[] },
-      evening:  { core:['bar'], acceptable:[], lastResort:['cinema'] },
+      // Sprint 7 CONDITIONAL tier: an event is only as "budget-friendly" as
+      // its real price makes it. Rather than guess, a candidate event is
+      // promoted to acceptable-equivalent priority ONLY when the provider
+      // confirms it's actually free (eventMeta.priceMin === 0) — otherwise
+      // it stays a last resort, never assumed cheap just because it exists.
+      evening:  { core:['bar'], acceptable:[], lastResort:['cinema','event'],
+        conditional: { categories:['event'], test: (poi) => !!(poi.eventMeta && poi.eventMeta.priceMin === 0) } },
     },
     excluded: ['nightclub', ...UNIVERSALLY_EXCLUDED_CATEGORIES],
     preferredTraits: ['good-value','free-where-possible'],
@@ -952,7 +989,7 @@ const VIBE_PROFILES = {
       coffee:   { core:['cafe','bakery'], acceptable:[], lastResort:[] },
       activity: { core:['arts_centre','theatre','gallery','museum','escape_room'], acceptable:['bookstore','artwork'], lastResort:['park'] },
       food:     { core:['restaurant','cafe'], acceptable:[], lastResort:[] },
-      evening:  { core:['theatre','arts_centre'], acceptable:['bar'], lastResort:['cinema'] },
+      evening:  { core:['theatre','arts_centre'], acceptable:['bar','event'], lastResort:['cinema'] },
     },
     excluded: ['nightclub', ...UNIVERSALLY_EXCLUDED_CATEGORIES],
     preferredTraits: ['artistic','unique','locally-distinctive'],
@@ -975,6 +1012,12 @@ function buildDayIntentProfile({ vibe, group, budget, weather }){
   for(const slotKey of Object.keys(base.slots)){
     const src = base.slots[slotKey];
     slotTiers[slotKey] = { core:[...src.core], acceptable:[...src.acceptable], lastResort:[...src.lastResort] };
+    // Sprint 7 CONDITIONAL tier: a category that's only appropriate under a
+    // specific, checkable real condition (see e.g. budget.evening's event
+    // rule above) — carried through as-is; resolved per-candidate in
+    // pickCandidatesForSlot, since the condition may depend on the candidate
+    // itself (e.g. a specific event's real price), not just vibe/group/weather.
+    if(src.conditional) slotTiers[slotKey].conditional = src.conditional;
   }
 
   // Group may only move a category BETWEEN tiers the vibe already offers it in
@@ -1151,6 +1194,38 @@ async function fetchNearbyEvents(lat, lon, opts){
     console.warn('Events proxy fetch failed (network or CORS) — falling back to search link:', e.message);
     return null;
   }
+}
+
+// Sprint 7: turns a real, already-fetched Ticketmaster event into the same
+// POI-shaped candidate the rest of the Decision Layer already understands,
+// so it can compete honestly for a slot — never a mandatory stop, never
+// invented data. Two HARD gates, both enforced here and never relaxed:
+//  - the event's own date must equal the plan's date exactly (an event must
+//    NEVER be suggested for the wrong date);
+//  - the event must have real venue coordinates (the Worker/Ticketmaster
+//    already provides these when known — see worker/src/index.js
+//    normalizeEvent) — no coordinates means no geographic-compatibility
+//    check is possible, so the honest choice is to exclude it, not guess.
+function normalizeEventAsCandidate(event, dateStr){
+  if(!event || event.startDate !== dateStr) return null;
+  if(event.lat == null || event.lon == null) return null;
+  return {
+    lat: event.lat, lon: event.lon, category: 'event', source: 'ticketmaster', id: event.id || null, osmType: null,
+    tags: { name: event.name || '' },
+    eventMeta: {
+      startDate: event.startDate, startTime: event.startTime || null, venueName: event.venueName || null,
+      url: event.url || null, priceMin: event.priceMin ?? null, priceMax: event.priceMax ?? null, priceCurrency: event.priceCurrency || null,
+    },
+  };
+}
+// "Do not send someone across a city for a mediocre event merely because it
+// exists" — a bounded distance gate, on top of (not instead of) normal
+// scoring, which already penalizes distance for every candidate type.
+const EVENT_MAX_DISTANCE_KM = 5;
+function buildEventCandidates(events, center, dateStr){
+  return (events||[])
+    .map(ev => normalizeEventAsCandidate(ev, dateStr))
+    .filter(c => c && haversineKm(center, c) <= EVENT_MAX_DISTANCE_KM);
 }
 function formatEventDate(dateStr, timeStr){
   if(!dateStr) return '';
@@ -1351,13 +1426,36 @@ async function fetchWithTimeout(url, options={}, timeoutMs=9000){
   }
 }
 
+// Sprint 7: `addressdetails=1` costs nothing extra (same request, same
+// endpoint already in use) but gives a REAL ISO country code alongside the
+// coordinates — used for cost-estimate currency context (see
+// estimateDailyCost) instead of guessing a country from the display-name
+// text, which previously broke silently for coordinate input (Sprint 6
+// acceptance finding).
 async function geocodeCity(q){
-  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=1`;
+  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=1&addressdetails=1`;
   const res = await fetchWithTimeout(url, { headers: { 'Accept-Language':'en' } }, 9000);
   if(!res.ok) throw new Error('Geocoding failed');
   const data = await res.json();
   if(!data.length) throw new Error(`Could not find "${q}". Try a more specific place name.`);
-  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), label: data[0].display_name };
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), label: data[0].display_name, countryCode: data[0].address?.country_code || null };
+}
+
+// Sprint 7: coordinate input (e.g. "41.39,2.16") bypasses geocodeCity
+// entirely, so it never had ANY country context — this is the specific gap
+// Sprint 6's live acceptance pass found (Istanbul entered as coordinates lost
+// TL-specific cost behavior). A best-effort REAL reverse-geocode lookup,
+// using the same already-integrated Nominatim service; failure is always
+// non-fatal (never blocks planning) and simply leaves country context
+// unknown — never a guess, never a fabricated currency.
+async function reverseGeocodeCountry(lat, lon){
+  try{
+    const url = `${NOMINATIM_URL.replace('/search','/reverse')}?format=jsonv2&lat=${lat}&lon=${lon}&zoom=3&addressdetails=1`;
+    const res = await fetchWithTimeout(url, { headers: { 'Accept-Language':'en' } }, 6000);
+    if(!res.ok) return null;
+    const data = await res.json();
+    return data?.address?.country_code || null;
+  }catch(e){ return null; }
 }
 
 // ---------- city autocomplete ----------
@@ -1378,7 +1476,7 @@ function highlightSuggestion(){
   document.querySelectorAll('#city-suggestions .suggestion').forEach((el,i)=>el.classList.toggle('active', i===suggestionIndex));
 }
 async function fetchCitySuggestions(q){
-  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=6`;
+  const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=6&addressdetails=1`;
   try{
     const res = await fetchWithTimeout(url, { headers: { 'Accept-Language': LANG==='tr' ? 'tr' : 'en' } }, 6000);
     if(!res.ok) return [];
@@ -1411,7 +1509,7 @@ function pickCitySuggestion(idx){
   const item = lastSuggestions[idx];
   if(!item) return;
   $('city').value = item.display_name.split(',').slice(0,2).join(',');
-  selectedCitySuggestion = { lat: parseFloat(item.lat), lon: parseFloat(item.lon), label: item.display_name };
+  selectedCitySuggestion = { lat: parseFloat(item.lat), lon: parseFloat(item.lon), label: item.display_name, countryCode: item.address?.country_code || null };
   renderCitySuggestions([]);
 }
 document.addEventListener('click', (e)=>{
@@ -1460,7 +1558,12 @@ const OVERPASS_ENDPOINTS = [
 ];
 const CORS_PROXY_PREFIX = 'https://api.allorigins.win/raw?url=';
 
-async function queryOverpass(query, onProgress){
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// One full pass through every mirror, in order. Returns parsed JSON on the
+// first success, or null if every mirror in this pass failed (never throws —
+// the caller decides whether a retry pass is worth it).
+async function tryOverpassMirrors(query, onProgress){
   let lastErr;
   for(const endpoint of OVERPASS_ENDPOINTS){
     const host = endpoint.split('/')[2];
@@ -1475,9 +1578,30 @@ async function queryOverpass(query, onProgress){
       lastErr = new Error(`${endpoint} responded ${res.status}`);
     } catch(e){ lastErr = e; console.warn('Overpass attempt failed:', host, e.message); }
   }
+  return { failed: true, lastErr };
+}
+
+// Sprint 7: real-world acceptance testing (Sprint 6) found Barcelona and
+// Lisbon returned ZERO itinerary after every mirror failed on the FIRST pass
+// — plausibly transient (rate limiting, a momentary blip), since the same
+// mirrors worked for other cities in the same run. This adds exactly ONE
+// bounded retry pass (never infinite, never silent) through the same mirror
+// list before falling to the CORS-proxy last resort, since a second attempt
+// after a short pause is the cheapest, smallest-justified way to recover from
+// a transient failure without masking a genuine outage.
+async function queryOverpass(query, onProgress){
+  let result = await tryOverpassMirrors(query, onProgress);
+  if(!(result && result.failed)) return result;
+  console.warn('All Overpass mirrors failed on first pass — retrying once after a short pause.');
+  onProgress?.('Retrying map data sources…');
+  await sleep(1500);
+  result = await tryOverpassMirrors(query, onProgress);
+  if(!(result && result.failed)) return result;
+
   // Last resort: route a GET request through a public CORS proxy. This unblocks the
   // page when opened directly as a local file (origin "null"), which some Overpass
   // mirrors refuse to talk to. Not meant for production — see CONCEPT.md.
+  let lastErr = result.lastErr;
   try{
     onProgress?.('Trying a fallback route…');
     const getUrl = `${OVERPASS_ENDPOINTS[0]}?data=${encodeURIComponent(query)}`;
@@ -1485,8 +1609,8 @@ async function queryOverpass(query, onProgress){
     if(res.ok) return await res.json();
     lastErr = new Error(`CORS proxy responded ${res.status}`);
   } catch(e){ lastErr = e; console.warn('CORS proxy attempt failed:', e.message); }
-  console.error('All Overpass attempts failed:', lastErr);
-  throw new Error('Places lookup failed — map data sources are unreachable right now (tried 4 different routes). If you opened this file directly (double-click), running it through a local server instead usually fixes this for good — ask for those steps again if you want them.');
+  console.error('All Overpass attempts failed (two full passes + CORS proxy):', lastErr);
+  throw new Error('Places lookup failed — map data sources are unreachable right now (tried every route twice). If you opened this file directly (double-click), running it through a local server instead usually fixes this for good — ask for those steps again if you want them.');
 }
 
 async function fetchPOIs(lat,lon,onProgress){
@@ -1508,7 +1632,15 @@ async function fetchPOIs(lat,lon,onProgress){
     for(const [cat, tagPairs] of Object.entries(CATEGORY_TAGS)){
       if(tagPairs.some(([k,v])=>tags[k]===v)){ category = cat; break; }
     }
-    return { lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon, tags, category };
+    // Sprint 7: retain real OSM identifiers/source alongside the normalized
+    // category — nothing here is invented, it's exactly what Overpass already
+    // returns per element; previously discarded. Used for same-complex
+    // detection (shared operator/brand) and to trace a candidate back to its
+    // real source record.
+    return {
+      lat: el.lat ?? el.center?.lat, lon: el.lon ?? el.center?.lon, tags, category,
+      id: el.id ?? null, osmType: el.type ?? null, source: 'osm',
+    };
   }).filter(p=>p.category && p.lat && p.lon);
 }
 
@@ -1650,6 +1782,39 @@ function rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCateg
     .map(r=>r.p);
 }
 
+// Sprint 7: conservative same-place/same-complex detection. Real acceptance
+// testing found "BFI Riverfront" then "BFI Café" back to back — two
+// technically different OSM nodes/categories that are, in real-world terms,
+// the same venue complex. Deliberately narrow, real-signal-only: a very
+// small geographic distance (~80m) PLUS either a shared operator/brand tag
+// or a shared, meaningful name token — distance alone is not enough (two
+// genuinely unrelated neighboring shops are common and must not be treated
+// as duplicates).
+function normalizeNameTokens(name){
+  return (name||'').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,' ').split(/\s+/).filter(tok=>tok.length>=3);
+}
+// Sprint 7 live acceptance testing verified the exact real-world complex this
+// detector is meant to catch (BFI Southbank's Café/Riverfront/Bar) spans up
+// to 121m between real OSM nodes, none carrying an operator/brand tag — the
+// original 80m threshold, chosen before any real-world measurement, missed
+// it. 150m is set from that verified real distance, not tuned to force a
+// specific test to pass; it still requires a shared name token or operator
+// on top of distance, so unrelated close-together businesses remain unaffected.
+const SAME_COMPLEX_MAX_KM = 0.15;
+function isSameComplex(a, b){
+  if(!a || !b || a===b) return false;
+  if(haversineKm(a,b) > SAME_COMPLEX_MAX_KM) return false;
+  const opA = ((a.tags && (a.tags.operator || a.tags.brand)) || '').toLowerCase().trim();
+  const opB = ((b.tags && (b.tags.operator || b.tags.brand)) || '').toLowerCase().trim();
+  if(opA && opB && opA === opB) return true;
+  const tokensB = new Set(normalizeNameTokens(placeName(b.tags||{})));
+  return normalizeNameTokens(placeName(a.tags||{})).some(tok => tokensB.has(tok));
+}
+function isSameComplexAsAnyUsed(candidate, used){
+  for(const u of used){ if(isSameComplex(candidate, u)) return true; }
+  return false;
+}
+
 // Selects candidates for a single slot by walking the Day Intent Profile's
 // tiers in order (core -> acceptable -> lastResort), then — ONLY if the
 // caller explicitly allows it via `allowCrossSlotFallback` — falls through to
@@ -1675,13 +1840,34 @@ function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, d
   const notUsed = p => !used.has(p);
   const notExcluded = p => !excluded.has(p.category);
   const notConfirmedClosed = p => isLikelyOpenAt(p.tags.opening_hours, dateStr, estMinute) !== false;
+  // Sprint 7: avoid picking a second stop that's really the same venue
+  // complex as one already chosen today — not applied to the absolute
+  // last-resort fallback below, where guaranteeing a non-empty day wins.
+  const notSameComplex = p => !isSameComplexAsAnyUsed(p, used);
 
-  const tierOrder = [['core',tiers.core], ['acceptable',tiers.acceptable], ['lastResort',tiers.lastResort]];
+  const tierOrder = [['core',tiers.core], ['acceptable',tiers.acceptable]];
   for(const [tierName, cats] of tierOrder){
     if(!cats || !cats.length) continue;
-    const candidates = pois.filter(p => cats.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p));
+    const candidates = pois.filter(p => cats.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p));
     if(candidates.length){
       return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: tierName, relaxed: tierName !== 'core' };
+    }
+  }
+  // CONDITIONAL tier (Sprint 7): a category only counts at acceptable-level
+  // priority if the real, per-candidate condition actually holds (e.g. an
+  // event only if it's confirmed free) — checked per candidate, not just
+  // per vibe/group, since the fact it depends on can vary POI by POI.
+  if(tiers.conditional && tiers.conditional.categories && tiers.conditional.categories.length){
+    const { categories: condCats, test: condTest } = tiers.conditional;
+    const condCandidates = pois.filter(p => condCats.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p) && (typeof condTest !== 'function' || condTest(p)));
+    if(condCandidates.length){
+      return { top: rankCandidates(condCandidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: 'conditional', relaxed: true };
+    }
+  }
+  if(tiers.lastResort && tiers.lastResort.length){
+    const candidates = pois.filter(p => tiers.lastResort.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p));
+    if(candidates.length){
+      return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: 'lastResort', relaxed: true };
     }
   }
   if(allowCrossSlotFallback === false) return { top: [], tierUsed: null, relaxed: false };
@@ -1738,6 +1924,16 @@ function recomputeStopDistances(stops, center){
 // simple — a full combinatorial search across all slots is out of scope for
 // Sprint 1 (see architecture doc's "unvalidated whole-day judgment" failure
 // mode: there is no ground truth to optimize against beyond these proxies).
+// Sprint 7 fix, found by live acceptance testing (not a synthetic test):
+// this pass previously only rejected an alternate that was the EXACT same
+// POI object as another stop — it had no idea about same-complex venues at
+// all. Since two nodes in the same real-world complex (e.g. BFI Café / BFI
+// Riverfront, ~120m apart) are, almost by definition, unusually close
+// together, swapping toward one of them is exactly what minimizes this
+// pass's own distance term — so it could silently UNDO the same-complex
+// exclusion pickCandidatesForSlot already correctly applied during the
+// original greedy selection, purely to shave a little total walking
+// distance. Now rejected the same way an exact duplicate already was.
 function improveSequence(stops, center){
   if(stops.length < 2) return;
   for(let i=0; i<stops.length; i++){
@@ -1750,7 +1946,7 @@ function improveSequence(stops, center){
     for(let altIdx=0; altIdx<stop.candidates.length; altIdx++){
       if(altIdx === originalAltIndex) continue;
       const alt = stop.candidates[altIdx];
-      if(stops.some((s,j)=>j!==i && s.poi===alt)) continue;
+      if(stops.some((s,j)=>j!==i && (s.poi===alt || isSameComplex(s.poi, alt)))) continue;
       stop.poi = alt;
       recomputeStopDistances(stops, center);
       const penalty = sequencePenalty(stops, center);
@@ -1768,6 +1964,58 @@ function evaluatePacing(scheduledStops, endMin, pace){
   const last = scheduledStops[scheduledStops.length-1];
   const bufferMin = endMin - last.end;
   return { fitsWindow: bufferMin >= -15, bufferMin, pace };
+}
+
+// Sprint 7: candidate SELECTION happens on rough estimated times (before real
+// routing is known — see buildItinerary/estimateSlotStartTimes); real walking
+// durations from scheduleStops can shift a stop's ACTUAL arrival earlier or
+// later than that estimate. Real acceptance testing found this let a stop be
+// scheduled to arrive before its own known opening time (Maison Européenne
+// de la Photographie: arrival 10:50, opens 11:00) — DayLoop knew the real
+// opening time but nothing re-checked the FINAL schedule against it. This
+// closes that gap: never intentionally leave a stop scheduled while it's
+// confirmed closed. Unverified/unknown hours are left exactly as they were
+// (never upgraded to a false certainty) — this only acts when a stop is
+// confirmed closed at its real, final arrival time.
+const MAX_REASONABLE_SHIFT_MIN = 30;
+function resolveOpeningHoursConflicts(stops, dateStr, endMin, center){
+  let shift = 0;
+  let prevPoi = center;
+  for(let i=0; i<stops.length; i++){
+    const s = stops[i];
+    if(shift){ s.start += shift; s.end += shift; }
+    const realMinute = s.start % 1440;
+    const state = isLikelyOpenAt(s.poi.tags.opening_hours, dateStr, realMinute);
+    if(state === false){
+      const nextOpen = nextOpeningTimeToday(s.poi.tags.opening_hours, dateStr, realMinute);
+      const delay = nextOpen != null ? nextOpen - realMinute : null;
+      const shiftIsReasonable = delay != null && delay <= MAX_REASONABLE_SHIFT_MIN && (s.end + delay) <= endMin;
+      if(shiftIsReasonable){
+        // "Determine whether shifting the schedule is reasonable" — it is
+        // here, so shift this stop and cascade the same delay to every
+        // later stop, keeping the rest of the day internally consistent
+        // rather than only fixing this one stop and leaving a timing gap.
+        s.start += delay; s.end += delay;
+        shift += delay;
+        s.scheduleAdjustedForHours = true;
+      } else if(s.candidates && s.candidates.length > 1){
+        // Otherwise, choose another candidate — reusing the SAME already-
+        // ranked alternates from selection time (no new search), picking the
+        // first one that isn't confirmed closed at this stop's real time.
+        const better = s.candidates.find(c => c !== s.poi && isLikelyOpenAt(c.tags.opening_hours, dateStr, realMinute) !== false);
+        if(better){
+          s.poi = better;
+          s.altIndex = s.candidates.indexOf(better);
+          s.distFromPrev = haversineKm(prevPoi, better);
+        }
+        // If no shift and no working alternate exist, the stop is left as-is
+        // — the confidence badge already tells the user honestly it may be
+        // closed then (never hidden); a full re-plan is out of scope here.
+      }
+    }
+    prevPoi = s.poi;
+  }
+  return stops;
 }
 
 // Orchestrates the Decision Layer: plans the day's shape against real density
@@ -1841,6 +2089,11 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
     center = selectedCitySuggestion;
   } else if(coordMatch){
     center = { lat: parseFloat(coordMatch[1]), lon: parseFloat(coordMatch[3]), label: cityInput };
+    // Sprint 7: coordinate input has no country context otherwise (the exact
+    // gap Sprint 6's live acceptance pass found for Istanbul entered as
+    // lat/lon) — a real, best-effort reverse-geocode lookup; non-fatal if it
+    // fails, planning proceeds either way with country context simply unknown.
+    center.countryCode = await reverseGeocodeCountry(center.lat, center.lon);
   } else {
     center = await geocodeCity(cityInput);
   }
@@ -1853,9 +2106,41 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   const weather = summarizeWeather(weatherJson, startMin, endMin);
 
   setStatus(t('status_places'));
-  const pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+  let pois, placesDegraded = false;
+  try{
+    pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+  } catch(fetchErr){
+    // Sprint 7: preserve successful data from an earlier attempt when
+    // possible, rather than letting one provider failure destroy the whole
+    // planning result outright. Only reused when it's genuinely for
+    // (approximately) the same place — never substituted for a different
+    // city, which would be worse than an honest failure.
+    if(lastPOIContext && lastPOIContext.pois.length && haversineKm(center, lastPOIContext.center) < 3){
+      console.warn('POI fetch failed — reusing the last successful nearby fetch instead of failing outright:', fetchErr.message);
+      pois = lastPOIContext.pois;
+      placesDegraded = true;
+    } else {
+      throw fetchErr;
+    }
+  }
+
+  // Sprint 7: real events become genuine itinerary candidates (not just the
+  // separate "Nearby tonight" browsing strip, which is untouched and still
+  // fetches independently above). Fully optional/degradable — if the events
+  // proxy isn't configured, times out, or returns nothing, planning proceeds
+  // exactly as before with zero effect (CLAUDE.md's existing degrade-
+  // gracefully principle for this integration).
+  if(eventsProxyConfigured()){
+    try{
+      const events = await fetchNearbyEvents(center.lat, center.lon, { dateStr, startMin, endMin });
+      if(Array.isArray(events) && events.length){
+        pois = [...pois, ...buildEventCandidates(events, center, dateStr)];
+      }
+    }catch(e){ console.warn('Event candidate fetch failed (non-fatal, planning continues without events):', e.message); }
+  }
+
   lastPOIContext = { center, pois, dateStr, startMin, endMin };
-  return { center, weather, pois };
+  return { center, weather, pois, placesDegraded };
 }
 
 async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, group, budget){
@@ -1869,6 +2154,10 @@ async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, v
   const route = await fetchWalkingRoute(points);
   const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
   const stops = scheduleStops(rawStops, startMin, legDurationsForStops, structure.stretchFactor);
+  // Sprint 7: re-check the FINAL, real schedule against opening hours — the
+  // rough estimate used during candidate selection can differ from the
+  // actual arrival time once real walking durations are known.
+  resolveOpeningHoursConflicts(stops, dateStr, endMin, center);
   const totalWalkKm = route ? route.legs.slice(1).reduce((sum,l)=>sum+l.distanceKm,0) : rawStops.slice(1).reduce((sum,r)=>sum+r.distFromPrev,0);
   const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
   dayTrace.pacing = evaluatePacing(stops, endMin, profile.pace);
@@ -1907,6 +2196,12 @@ function explainStop(stop, profile, priorStops, weather){
   if(stop.tierUsed === 'crossSlotFallback') return t('explain_fallback', vars);
   if(stop.tierUsed === 'lastResort') return t('explain_last_resort', vars);
 
+  // A real, date/venue-matched event — the day/place/vibe match was already
+  // hard-gated before this candidate ever reached scoring (see
+  // normalizeEventAsCandidate), so stating that match here is a fact, not a
+  // guess about the event's quality.
+  if(category === 'event') return t('explain_event', vars);
+
   if(weather && weather.indoorBias && !OUTDOOR.has(category)) return t('explain_weather_indoor', vars);
 
   // A genuine discovery-category pick with no chain "brand" tag — surfaced
@@ -1936,6 +2231,35 @@ function explainSummary(dayTrace){
   if(dayTrace.densityTier === 'low') return t('summary_density_low');
   if(dayTrace.densityTier === 'high') return t('summary_density_high');
   return t('summary_density_medium');
+}
+
+// Sprint 7: explains the DAY, not just individual stops — a short, bounded
+// list of facts the engine actually knows (never marketing language, never a
+// claim like "hidden gem"/"best"/"popular" this app has no data source for).
+// Each line below is directly traceable to a real, already-computed fact:
+// the resolved weather bias, the resolved intent profile's own exclusions,
+// the already-computed whole-day distance trace, a real opening-hours
+// schedule adjustment, or a genuine date/vibe-matched event.
+function explainPlan(profile, dayTrace, stops, weather){
+  const reasons = [];
+  if(weather && weather.indoorBias) reasons.push(t('planexplain_weather_indoor'));
+  if(profile && profile.excluded && profile.excluded.size){
+    reasons.push(t('planexplain_vibe_excluded', { categories: Array.from(profile.excluded).map(c=>t('cat_'+c)).join(', ') }));
+  }
+  if(dayTrace && stops.length > 1){
+    const avgLegKm = dayTrace.totalDistanceKm / stops.length;
+    if(avgLegKm < 0.8) reasons.push(t('planexplain_compact_route'));
+  }
+  if(stops.some(s => DISCOVERY_CATEGORIES.has(s.poi.category) && !s.poi.tags.brand)){
+    reasons.push(t('planexplain_discovery'));
+  }
+  if(stops.some(s => s.scheduleAdjustedForHours)){
+    reasons.push(t('planexplain_schedule_shifted'));
+  }
+  if(stops.some(s => s.poi.category === 'event')){
+    reasons.push(t('planexplain_event_fit'));
+  }
+  return reasons.slice(0,4); // bounded — a whole-day explanation, not an essay
 }
 
 // One restrained, whole-day note — never one caveat per stop. Only the single
@@ -1993,9 +2317,30 @@ function costBucketFor(category){ return COST_BUCKET_FOR_CATEGORY[category] || '
 
 function estimateDailyCost(stops, budgetLevel, center){
   const scale = budgetLevel===1 ? 0.7 : budgetLevel===3 ? 1.4 : 1;
-  const isTurkey = /turkey|türkiye/i.test((center && center.label) || '');
+  // Sprint 7: a real ISO country code from Nominatim (geocodeCity's
+  // addressdetails, the autocomplete selection, or a best-effort reverse-
+  // geocode for coordinate input — see reverseGeocodeCountry) replaces the
+  // old brittle label-text regex, which silently lost Turkey-specific
+  // behavior for coordinate input entirely (Sprint 6 finding: Istanbul
+  // entered as "41.0082,28.9784" never matched a text pattern). If country
+  // context is genuinely unknown, this falls through to the generic tier
+  // below — never a guess at currency.
+  const isTurkey = center && center.countryCode === 'tr';
   const breakdown = { food:[0,0], coffee:[0,0], activities:[0,0], transport:[0,0] };
+  // Sprint 7: a real event's price (when the provider supplies one) is kept
+  // entirely separate from the hand-authored category bands below — merging
+  // a real, provider-currency figure into a guessed-band total would risk
+  // mixing units dishonestly. If the provider didn't supply a price, that's
+  // stated as unknown, never assumed free or estimated from the category.
+  let eventCost = null;
   stops.forEach(s=>{
+    if(s.poi.category === 'event'){
+      const meta = s.poi.eventMeta;
+      eventCost = (meta && meta.priceMin != null)
+        ? { priceMin: meta.priceMin, priceMax: meta.priceMax != null ? meta.priceMax : meta.priceMin, currency: meta.priceCurrency || '' }
+        : 'unknown';
+      return;
+    }
     const band = CATEGORY_COST_BAND_TL[s.poi.category];
     if(!band) return;
     const bucket = costBucketFor(s.poi.category);
@@ -2004,20 +2349,24 @@ function estimateDailyCost(stops, budgetLevel, center){
   });
   const totalMin = breakdown.food[0]+breakdown.coffee[0]+breakdown.activities[0]+breakdown.transport[0];
   const totalMax = breakdown.food[1]+breakdown.coffee[1]+breakdown.activities[1]+breakdown.transport[1];
-  return { totalMin, totalMax, breakdown, currency: isTurkey ? 'TL' : null, budgetLevel };
+  return { totalMin, totalMax, breakdown, currency: isTurkey ? 'TL' : null, budgetLevel, eventCost };
 }
 
 function formatCostEstimate(cost){
   const fmtRange = (band, currency) => currency ? `${band[0]}–${band[1]} ${currency}` : null;
+  const eventLine = cost.eventCost === 'unknown' ? t('cost_event_price_unknown')
+    : cost.eventCost ? (cost.eventCost.priceMin === 0 ? t('event_free') : `${Math.round(cost.eventCost.priceMin)}–${Math.round(cost.eventCost.priceMax)} ${cost.eventCost.currency}`.trim())
+    : null;
   if(cost.currency){
     return {
       total: fmtRange([cost.totalMin, cost.totalMax], cost.currency),
       food: fmtRange(cost.breakdown.food, cost.currency),
       coffee: fmtRange(cost.breakdown.coffee, cost.currency),
       activities: fmtRange(cost.breakdown.activities, cost.currency),
+      event: eventLine,
     };
   }
-  return { total: t('cost_range_generic', { tier: '$'.repeat(cost.budgetLevel || 2) }), food:null, coffee:null, activities:null };
+  return { total: t('cost_range_generic', { tier: '$'.repeat(cost.budgetLevel || 2) }), food:null, coffee:null, activities:null, event: eventLine };
 }
 
 // ---------- Sprint 6: "Optional touches" — never part of the main plan ----------
@@ -2034,13 +2383,13 @@ function buildOptionalTouches(stops, pois, center){
     if(!stop.candidates) return;
     const runnerUp = stop.candidates.find(c => c !== stop.poi && !usedPois.has(c));
     if(runnerUp){
-      touches.push({ kind:'alternative', category: runnerUp.category, name: placeName(runnerUp.tags) || t('cat_'+runnerUp.category), distanceKm: haversineKm(stop.poi, runnerUp) });
+      touches.push({ kind:'alternative', category: runnerUp.category, name: placeName(runnerUp.tags) || t('cat_'+runnerUp.category), distanceKm: haversineKm(stop.poi, runnerUp), lat: runnerUp.lat, lon: runnerUp.lon });
       usedPois.add(runnerUp); // don't suggest the same runner-up twice across stops
     }
   });
 
   const ferry = (pois||[]).find(p => p.category==='ferry_terminal' && !usedPois.has(p));
-  if(ferry) touches.push({ kind:'ferry', name: placeName(ferry.tags) || t('cat_ferry_terminal'), distanceKm: haversineKm(center, ferry) });
+  if(ferry) touches.push({ kind:'ferry', name: placeName(ferry.tags) || t('cat_ferry_terminal'), distanceKm: haversineKm(center, ferry), lat: ferry.lat, lon: ferry.lon });
 
   return touches.slice(0,3);
 }
@@ -2135,11 +2484,14 @@ async function planDay(){
 
   $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    const { center, weather, pois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    const { center, weather, pois, placesDegraded } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
     if(!pois.length){
       showError(t('error_no_places'));
       setStatus(''); return;
     }
+    // Sprint 7: never a SILENT fallback — if place data came from a cached
+    // nearby fetch because the live one failed, say so plainly.
+    if(placesDegraded) showToast(t('places_degraded_notice'));
 
     const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
     const groupVal = $('group').value;
@@ -2732,13 +3084,34 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
 // custom properties, so the route color is resolved to a literal hex matching
 // the current color-scheme instead of referencing var(--accent).
 let leafletMap = null;
+// Sprint 7: stop-index -> Leaflet marker, so a stop card click can focus the
+// matching marker and vice versa. Rebuilt on every renderMap() call.
+let itineraryMarkers = [];
 function currentAccentHex(){
   return '#ff6b6b';
 }
-function renderMap(center, stops, geometry){
+// Selecting a stop card pans/opens the matching marker's popup; selecting a
+// marker scrolls to and briefly highlights the matching card. Both directions
+// reuse the SAME index mapping (`itineraryMarkers[i]` <-> `#stop-card-{i}`) —
+// no new visual language, just wiring the two views everyone already has.
+function focusMapMarker(i){
+  const marker = itineraryMarkers[i];
+  if(!marker || !leafletMap) return;
+  leafletMap.panTo(marker.getLatLng());
+  marker.openPopup();
+}
+function focusStopCard(i){
+  const card = document.getElementById(`stop-card-${i}`);
+  if(!card) return;
+  card.scrollIntoView({ behavior:'smooth', block:'center' });
+  card.classList.add('focused');
+  setTimeout(()=>card.classList.remove('focused'), 1600);
+}
+function renderMap(center, stops, geometry, optionalTouches){
   const el = $('mapview');
   if(!el || typeof L === 'undefined') return;
   if(leafletMap){ leafletMap.remove(); leafletMap = null; }
+  itineraryMarkers = [];
   // On touch devices a draggable map inside a scrolling page fights the page scroll —
   // every attempt to scroll past the map instead pans it. Start it non-interactive on
   // touch and require one tap to "unlock" it, same pattern Google Maps embeds use.
@@ -2764,7 +3137,24 @@ function renderMap(center, stops, geometry){
   }
   points.forEach((p,i)=>{
     const label = i===0 ? '📍' : String(i);
-    L.marker([p.lat,p.lon], { icon: L.divIcon({ className:'', html:`<div class="dl-pin">${label}</div>`, iconSize:[26,26] }) }).addTo(leafletMap);
+    const marker = L.marker([p.lat,p.lon], { icon: L.divIcon({ className:'', html:`<div class="dl-pin">${label}</div>`, iconSize:[26,26] }) }).addTo(leafletMap);
+    if(i>0){
+      // i=0 is the starting point (center), not an itinerary stop — stops start at index 1.
+      const stopIdx = i-1;
+      marker.bindPopup(escapeHtml(placeName(stops[stopIdx].poi.tags) || t('cat_'+stops[stopIdx].poi.category)));
+      marker.on('click', ()=>focusStopCard(stopIdx));
+      itineraryMarkers[stopIdx] = marker;
+    }
+  });
+  // Sprint 7: optional-touch suggestions get their own small, visually distinct
+  // (unnumbered, muted) marker style — never confusable with an actual
+  // itinerary stop, and never counted toward fitBounds (the map fits the
+  // itinerary itself, not incidental nearby suggestions).
+  (optionalTouches||[]).forEach(touch=>{
+    if(touch.lat==null || touch.lon==null) return;
+    L.marker([touch.lat, touch.lon], { icon: L.divIcon({ className:'', html:`<div class="dl-pin-secondary">+</div>`, iconSize:[18,18] }) })
+      .addTo(leafletMap)
+      .bindPopup(escapeHtml(touch.name || ''));
   });
   leafletMap.fitBounds(L.latLngBounds(latlngs), { padding:[30,30] });
 
@@ -2825,6 +3215,10 @@ function render(){
   const explanation = (currentPlan.dayIntentProfile && currentPlan.dayTrace)
     ? buildExplanation({ stops, profile: currentPlan.dayIntentProfile, dayTrace: currentPlan.dayTrace, weather, dateStr: currentPlan.dateStr })
     : null;
+  // Sprint 7: computed once here so both the "Optional touches" section and
+  // the map (distinct secondary markers) use the exact same list.
+  const rawPois = (lastPOIContext && lastPOIContext.pois) || [];
+  const touches = stops.length ? buildOptionalTouches(stops, rawPois, center) : [];
 
   stops.forEach((s,i)=>{
     if(i>0){
@@ -2838,7 +3232,7 @@ function render(){
     const igLink = placeInstagram(s.poi.tags);
     const conf = stopConfidence(s.poi, currentPlan.dateStr, s.start);
     const reasonText = explanation ? explanation.stopReasons[i] : null;
-    html += `<div class="stop">
+    html += `<div class="stop" id="stop-card-${i}" onclick="if(!event.target.closest('a,button')) focusMapMarker(${i})">
       <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${timeLabel}</div>
       <h3>${escapeHtml(name)}</h3>
       <div class="cat">${escapeHtml(t('cat_'+s.poi.category))}</div>
@@ -2863,13 +3257,24 @@ function render(){
   // alters the main plan above. Skipped entirely when there's nothing real
   // to suggest, rather than padding this section with filler.
   if(stops.length){
-    const rawPois = (lastPOIContext && lastPOIContext.pois) || [];
-    const touches = buildOptionalTouches(stops, rawPois, center);
     if(touches.length){
       html += `<div class="card planning-summary optional-touches">
         <div class="ps-title">${escapeHtml(t('optional_touches_title'))}</div>
         <p class="mood-hint" style="margin-top:0;">${escapeHtml(t('optional_touches_intro'))}</p>
         ${touches.map(touch=>`<div class="ps-item"><span class="ps-check">＋</span><span>${escapeHtml(formatOptionalTouch(touch))}</span></div>`).join('')}
+      </div>`;
+    }
+  }
+
+  // Sprint 7: whole-day explanation — why THIS day, not just why each stop.
+  // Only rendered for auto-generated plans (needs a resolved profile/trace);
+  // manual plans have neither and nothing here would be evidence-backed.
+  if(stops.length && currentPlan.dayIntentProfile && currentPlan.dayTrace){
+    const planReasons = explainPlan(currentPlan.dayIntentProfile, currentPlan.dayTrace, stops, weather);
+    if(planReasons.length){
+      html += `<div class="card planning-summary plan-explanation">
+        <div class="ps-title">${escapeHtml(t('plan_explanation_title'))}</div>
+        ${planReasons.map(r=>`<div class="ps-item"><span class="ps-check">✓</span><span>${escapeHtml(r)}</span></div>`).join('')}
       </div>`;
     }
   }
@@ -2914,6 +3319,7 @@ function render(){
       ${fmt.food ? `<div class="ps-item"><span>${escapeHtml(t('cost_food_label'))}: ${escapeHtml(fmt.food)}</span></div>` : ''}
       ${fmt.coffee ? `<div class="ps-item"><span>${escapeHtml(t('cost_coffee_label'))}: ${escapeHtml(fmt.coffee)}</span></div>` : ''}
       ${fmt.activities ? `<div class="ps-item"><span>${escapeHtml(t('cost_activities_label'))}: ${escapeHtml(fmt.activities)}</span></div>` : ''}
+      ${fmt.event ? `<div class="ps-item"><span>${escapeHtml(t('cost_event_label'))}: ${escapeHtml(fmt.event)}</span></div>` : ''}
       <div class="ps-item"><span>${escapeHtml(t('cost_transport_label'))}: ${escapeHtml(t('cost_transport_walking_note'))}</span></div>
       <p class="mood-hint" style="margin:8px 0 0;">${escapeHtml(t('cost_estimate_approx_note'))}</p>
     </div>`;
@@ -2931,7 +3337,7 @@ function render(){
   $('share-btn').addEventListener('click', onShareClick);
   $('again-btn').addEventListener('click', planAgain);
 
-  try{ renderMap(center, stops, routeGeometry); }catch(e){ console.warn('Map render failed:', e.message); }
+  try{ renderMap(center, stops, routeGeometry, touches); }catch(e){ console.warn('Map render failed:', e.message); }
 }
 
 // ---------- import a place shared from outside DayLoop (e.g. Instagram) ----------

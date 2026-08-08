@@ -75,6 +75,9 @@ function loadDecisionEngine(){
       formatWalkPreview, nextOpeningTimeToday, stopConfidence, discoveryScore,
       DISCOVERY_CATEGORIES, UNIVERSALLY_EXCLUDED_CATEGORIES, CATEGORY_TAGS,
       estimateDailyCost, formatCostEstimate, buildOptionalTouches, formatOptionalTouch,
+      normalizeEventAsCandidate, buildEventCandidates, EVENT_MAX_DISTANCE_KM,
+      isSameComplex, isSameComplexAsAnyUsed, resolveOpeningHoursConflicts,
+      explainPlan, MAX_REASONABLE_SHIFT_MIN,
     };`,
     context
   );

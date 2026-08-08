@@ -100,10 +100,13 @@ test('stopConfidence never hides the information — unparseable hours get an ex
 // ---------------------------------------------------------------------------
 // 4. Daily cost estimate: always approximate, Transport always walking-only,
 //    concrete currency only for a confidently-Turkey destination.
+// Sprint 7: currency context now comes from a real Nominatim country code
+// (center.countryCode), not a text-label regex — this is the exact fix for
+// the Sprint 6 finding that coordinate input silently lost TL behavior.
 // ---------------------------------------------------------------------------
-test('cost estimate shows a concrete TL range for a Turkey destination', () => {
+test('cost estimate shows a concrete TL range when the real country code is Turkey', () => {
   const stops = [ { poi: poi('restaurant') }, { poi: poi('cafe') } ];
-  const cost = eng.estimateDailyCost(stops, 2, { label: 'Istanbul, Turkey' });
+  const cost = eng.estimateDailyCost(stops, 2, { label: 'Istanbul, Turkey', countryCode: 'tr' });
   const fmt = eng.formatCostEstimate(cost);
   assert.match(fmt.total, /TL/);
   assert.match(fmt.food, /TL/);
@@ -111,10 +114,17 @@ test('cost estimate shows a concrete TL range for a Turkey destination', () => {
 
 test('cost estimate falls back to a relative budget-tier guide (no invented currency) outside Turkey', () => {
   const stops = [ { poi: poi('restaurant') }, { poi: poi('cafe') } ];
-  const cost = eng.estimateDailyCost(stops, 3, { label: 'Berlin, Germany' });
+  const cost = eng.estimateDailyCost(stops, 3, { label: 'Berlin, Germany', countryCode: 'de' });
   const fmt = eng.formatCostEstimate(cost);
   assert.equal(fmt.food, null, 'must not fabricate a currency conversion for a non-Turkey destination');
   assert.equal(fmt.total, eng.t('cost_range_generic', { tier: '$$$' }));
+});
+
+test('a Turkish label with no verified country code no longer triggers TL (fixes the Sprint 6 coordinate-input gap)', () => {
+  const stops = [ { poi: poi('restaurant') } ];
+  const cost = eng.estimateDailyCost(stops, 2, { label: '41.0082,28.9784' }); // coordinate input, no countryCode resolved
+  const fmt = eng.formatCostEstimate(cost);
+  assert.equal(fmt.food, null, 'unverified country context must fall back to the generic tier, never guess currency from text');
 });
 
 // Regression test for a real bug this sprint's review surfaced: String.replace
