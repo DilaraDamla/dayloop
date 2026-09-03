@@ -14,6 +14,20 @@ rules_version = '2';
 // In all cases {userId} is always the caller's own Firebase Auth UID
 // (fbUser.uid comes from onAuthStateChanged, never from user-editable input).
 //
+// Shared/collaborative plans (invite-friends feature) live at
+// sharedPlans/{shareId}, with each participant as their own document at
+// sharedPlans/{shareId}/participants/{uid} — {shareId} is a Firestore
+// client-generated auto-id (fbDb.collection('sharedPlans').doc().id), never
+// user-supplied, and doubles as the unguessable link token shared out of
+// band (a URL query param). {uid} under participants is always the caller's
+// own Firebase Auth uid, exactly like {userId} above.
+//   - create: fbDb.collection('sharedPlans').doc(shareId).set(sharedPlanDoc)          [owner only]
+//   - update/delete: fbDb.collection('sharedPlans').doc(shareId).update(...)/.delete() [owner only]
+//   - read:  fbDb.collection('sharedPlans').doc(shareId).get()                        [any signed-in user with the link]
+//   - create: fbDb.collection('sharedPlans').doc(shareId).collection('participants').doc(uid).set(entry)  [self only — this is "join"]
+//   - delete: fbDb.collection('sharedPlans').doc(shareId).collection('participants').doc(uid).delete()    [self only — this is "leave"]
+//   - read:  fbDb.collection('sharedPlans').doc(shareId).collection('participants').get()
+//
 // NOT deployed by this change — see docs/security/manual-owner-actions.md for
 // the manual deploy step required before these rules take effect.
 service cloud.firestore {
@@ -60,6 +74,36 @@ service cloud.firestore {
         && (data.address == null || (data.address is string && data.address.size() <= 300));
     }
 
+    // Same field set/shape as isValidPlan above (this IS the plan the owner
+    // just generated, unmodified — see buildSharedPlanDoc in index.html)
+    // plus three collaboration fields: who owns it, their display name for
+    // the "who's coming" list, and when it was created.
+    function isValidSharedPlan(data) {
+      return data.keys().hasOnly(['ownerId','ownerName','createdAt','dateStr','startMin','endMin','vibe','group','budget','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
+        && data.ownerId is string
+        && data.ownerName is string && data.ownerName.size() <= 100
+        && data.createdAt is number
+        && data.dateStr is string && data.dateStr.size() <= 20
+        && data.startMin is number && data.startMin >= 0 && data.startMin <= 1440
+        && data.endMin is number && data.endMin >= 0 && data.endMin <= 1440
+        && data.vibe is string && data.vibe.size() <= 50
+        && data.group is string && data.group.size() <= 50
+        && data.budget is number
+        && data.center is map
+        && data.weather is map
+        && data.stops is list && data.stops.size() <= 20
+        && data.totalWalkKm is number
+        && data.totalWalkMin is number
+        && (data.routeGeometry == null || (data.routeGeometry is list && data.routeGeometry.size() <= 5000));
+    }
+
+    function isValidParticipant(data) {
+      return data.keys().hasOnly(['uid','displayName','joinedAt'])
+        && data.uid is string
+        && data.displayName is string && data.displayName.size() <= 100
+        && data.joinedAt is number;
+    }
+
     // A user's own saved plans. Only the signed-in user whose auth UID
     // matches {userId} may read or write documents under their own path;
     // no other signed-in user, and no unauthenticated caller, can reach it —
@@ -74,6 +118,46 @@ service cloud.firestore {
     match /users/{userId}/wishlist/{placeKey} {
       allow read, delete: if isOwner(userId);
       allow create, update: if isOwner(userId) && isValidWishlistItem(request.resource.data);
+    }
+
+    // A plan shared for a group to coordinate around (invite-friends
+    // feature). Deliberately readable by ANY signed-in user, not only
+    // existing participants: {shareId} is an unguessable Firestore auto-id,
+    // and opening the link to preview the plan is how someone decides
+    // whether to join in the first place — the same "anyone with the link"
+    // model most link-sharing products use. Requiring sign-in (rather than
+    // allowing fully anonymous reads) still keeps it out of reach of an
+    // unauthenticated scraper/bot and matches this feature's chosen
+    // "must have a DayLoop account to join" participation model.
+    match /sharedPlans/{shareId} {
+      allow read: if request.auth != null;
+      // Only the plan's own owner (fixed permanently at creation — never
+      // reassignable, never taken from anything but the write itself) may
+      // create, update, or delete the shared plan document. Every other
+      // participant joins via their own doc in the subcollection below;
+      // none of them ever write this document.
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && isValidSharedPlan(request.resource.data);
+      allow update, delete: if request.auth != null && resource.data.ownerId == request.auth.uid;
+
+      // Each participant (the owner included — added the same way at
+      // creation time) is their own document, keyed by their own uid. This
+      // is what makes "anyone with the link can join, and can bring in
+      // their own friends" safe: a participant can only ever create or
+      // delete THEIR OWN doc, never anyone else's, so joining/leaving can
+      // never touch another participant's membership. Deliberately
+      // immutable (update denied) — changing a display name means leaving
+      // and rejoining, which keeps this rule simple and hard to get wrong.
+      match /participants/{participantId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.auth.uid == participantId
+          && request.resource.data.uid == participantId
+          && isValidParticipant(request.resource.data);
+        allow delete: if request.auth != null && request.auth.uid == participantId;
+        allow update: if false;
+      }
     }
 
     // Deny everything else by default. Firestore already denies any request

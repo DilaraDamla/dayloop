@@ -93,6 +93,19 @@ Option 2 — Console (no CLI needed):
    - The same request **unauthenticated** → should **deny**.
    - A write to `users/{uid}/plans/{id}` with an extra unexpected field, or
      a `stops` array of 50+ items → should **deny** (new Sprint 1 validation).
+   - A shared-plan feature check (new `sharedPlans/{shareId}` collection —
+     invite-friends): reading `sharedPlans/{any-id}` while authenticated as
+     ANY signed-in user (not just the owner/a participant) → should
+     **allow** (this collection is intentionally readable by anyone with
+     the link, not just existing participants — see the comment above
+     `match /sharedPlans/{shareId}` in `firestore.rules` for why). The same
+     read **unauthenticated** → should **deny**. Creating
+     `sharedPlans/{id}/participants/{their-own-uid}` while authenticated as
+     that uid → should **allow**; the same create attempted for a
+     **different** uid (impersonating another participant) → should
+     **deny**. Updating an existing `sharedPlans/{id}` document while
+     authenticated as a uid that is **not** that document's `ownerId` →
+     should **deny**.
 4. Click **Publish**.
 
 **After deploying**, re-run the Rules Playground checks above once more
