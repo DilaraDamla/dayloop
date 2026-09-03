@@ -48,7 +48,7 @@ service cloud.firestore {
     // document, not a privacy boundary — isOwner() above is what prevents any
     // cross-user access, and stays true regardless of these checks.
     function isValidPlan(data) {
-      return data.keys().hasOnly(['id','dateStr','startMin','endMin','vibe','group','budget','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
+      return data.keys().hasOnly(['id','dateStr','startMin','endMin','vibe','group','budget','travelMode','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
         && data.id is number
         && data.dateStr is string && data.dateStr.size() <= 20
         && data.startMin is number && data.startMin >= 0 && data.startMin <= 1440
@@ -56,6 +56,10 @@ service cloud.firestore {
         && data.vibe is string && data.vibe.size() <= 50
         && data.group is string && data.group.size() <= 50
         && data.budget is number
+        // Not pinned to ['foot','car'] for the same reason vibe/group aren't
+        // pinned to an enum above — a future mode shouldn't need a rules
+        // change to work, just a real string identifying it.
+        && data.travelMode is string && data.travelMode.size() <= 20
         && data.center is map
         && data.weather is map
         && data.stops is list && data.stops.size() <= 20
@@ -79,7 +83,7 @@ service cloud.firestore {
     // plus three collaboration fields: who owns it, their display name for
     // the "who's coming" list, and when it was created.
     function isValidSharedPlan(data) {
-      return data.keys().hasOnly(['ownerId','ownerName','createdAt','dateStr','startMin','endMin','vibe','group','budget','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
+      return data.keys().hasOnly(['ownerId','ownerName','createdAt','dateStr','startMin','endMin','vibe','group','budget','travelMode','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
         && data.ownerId is string
         && data.ownerName is string && data.ownerName.size() <= 100
         && data.createdAt is number
@@ -89,6 +93,7 @@ service cloud.firestore {
         && data.vibe is string && data.vibe.size() <= 50
         && data.group is string && data.group.size() <= 50
         && data.budget is number
+        && data.travelMode is string && data.travelMode.size() <= 20
         && data.center is map
         && data.weather is map
         && data.stops is list && data.stops.size() <= 20

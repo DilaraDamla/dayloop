@@ -93,6 +93,10 @@ function loadDecisionEngine(){
       POI_RADII, POI_RADII_WIDE, SPARSE_TOTAL_THRESHOLD, SPARSE_DISTINCT_THRESHOLD,
       buildSharedPlanDoc, buildParticipantEntry, formatParticipantsSummary,
       accessibilityBadge, filterAccessiblePOIs,
+      estimateTravelMinutes, walkMinutes, rankCandidates,
+      WALK_SPEED_KMH, DRIVE_SPEED_KMH, TRAVEL_SPEED_KMH, DISTANCE_PENALTY_PER_KM,
+      POI_RADII_CAR, POI_RADII_CAR_WIDE, fetchRoute, OSRM_FOOT_URL, OSRM_CAR_URL,
+      buildFullPlan,
     };`,
     context
   );

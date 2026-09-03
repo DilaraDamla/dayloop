@@ -25,7 +25,7 @@
   inline handlers, move to a nonce/hash-based CSP delivered as a true HTTP
   header on a host that supports one).
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: https://*.tile.openstreetmap.org https://*.ticketm.net; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org https://api.open-meteo.com https://overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.allorigins.win https://routing.openstreetmap.de https://dayloop-events-proxy.dayloop-dilara.workers.dev https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src 'self' https://dayloop-v2.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: https://*.tile.openstreetmap.org https://*.ticketm.net; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org https://api.open-meteo.com https://overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.allorigins.win https://routing.openstreetmap.de https://router.project-osrm.org https://dayloop-events-proxy.dayloop-dilara.workers.dev https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src 'self' https://dayloop-v2.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
 <title>DayLoop — plan your day, anywhere</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -426,6 +426,17 @@
     </div>
 
     <div class="row">
+      <div>
+        <label data-i18n="travel_mode_label">Getting around</label>
+        <div class="chips" id="travel-mode-chips">
+          <div class="chip active" data-val="foot" data-i18n="travel_mode_foot">🚶 On foot</div>
+          <div class="chip" data-val="car" data-i18n="travel_mode_car">🚗 By car</div>
+        </div>
+        <p class="mood-hint" id="travel-mode-hint" data-i18n="travel_mode_foot_hint">Stops stay close together, all walkable within the day.</p>
+      </div>
+    </div>
+
+    <div class="row">
       <div class="checkbox-row">
         <label class="checkbox-label">
           <input type="checkbox" id="wheelchair-only">
@@ -617,7 +628,12 @@ const STRINGS = {
     slot_coffee:"Coffee", slot_activity:"Activity", slot_food:"Food", slot_evening:"Evening",
     weather_clear:"Clear", weather_partly_cloudy:"Partly cloudy", weather_foggy:"Foggy",
     weather_rain:"Rain likely", weather_snow:"Snow", weather_thunder:"Thunderstorms",
-    min_walk_to_next:"min walk to next stop", min_unit:"min",
+    min_walk_to_next:"min walk to next stop", min_drive_to_next:"min drive to next stop", min_unit:"min",
+    travel_mode_label:"Getting around", travel_mode_foot:"🚶 On foot", travel_mode_car:"🚗 By car",
+    travel_mode_foot_hint:"Stops stay close together, all walkable within the day.",
+    travel_mode_car_hint:"Widens the search — spread-out places across the city can be worth the drive, not just what's nearby.",
+    drive_preview:"🚗 About {km} km ({min} min) of driving today.",
+    summary_drive:"driving",
     swap_btn:"🔄 Suggest another",
     share_btn:"🔗 Share this plan", share_copied:"Link copied to clipboard!",
     invite_friends_btn:"👥 Invite friends", invite_link_copied:"Invite link copied — send it to whoever's coming!",
@@ -709,6 +725,7 @@ const STRINGS = {
     cost_estimate_approx_note:"Approximate — DayLoop has no live price data, this is a rough guide based on venue type and your budget level, not confirmed prices.",
     cost_food_label:"Food", cost_coffee_label:"Coffee", cost_activities_label:"Activities", cost_transport_label:"Transport",
     cost_transport_walking_note:"This plan is fully walkable — no transport cost.",
+    cost_transport_driving_note:"By car — fuel/parking cost is not included in this estimate.",
     cost_event_price_unknown:"Event ticket price wasn't provided — check the event link before you go.",
     cost_event_label:"Event",
     cost_range_generic:"{tier} per person, roughly",
@@ -809,7 +826,12 @@ const STRINGS = {
     slot_coffee:"Kahve", slot_activity:"Aktivite", slot_food:"Yemek", slot_evening:"Akşam",
     weather_clear:"Açık", weather_partly_cloudy:"Parçalı bulutlu", weather_foggy:"Sisli",
     weather_rain:"Yağmur ihtimali", weather_snow:"Kar", weather_thunder:"Gök gürültülü fırtına",
-    min_walk_to_next:"dk yürüyüş — sonraki durak", min_unit:"dk",
+    min_walk_to_next:"dk yürüyüş — sonraki durak", min_drive_to_next:"dk araçla — sonraki durak", min_unit:"dk",
+    travel_mode_label:"Nasıl gezeceksin", travel_mode_foot:"🚶 Yürüyerek", travel_mode_car:"🚗 Araçla",
+    travel_mode_foot_hint:"Duraklar birbirine yakın tutulur, gün boyu tamamen yürüyerek gezilebilir.",
+    travel_mode_car_hint:"Aramayı genişletir — şehrin dağınık noktaları da artık gitmeye değer, sadece yakındakiler değil.",
+    drive_preview:"🚗 Bugün yaklaşık {km} km ({min} dk) araç yolculuğu var.",
+    summary_drive:"araçla",
     swap_btn:"🔄 Başka öner",
     share_btn:"🔗 Planı paylaş", share_copied:"Bağlantı panoya kopyalandı!",
     invite_friends_btn:"👥 Arkadaşlarını davet et", invite_link_copied:"Davet bağlantısı kopyalandı — gelecek olanlara gönder!",
@@ -901,6 +923,7 @@ const STRINGS = {
     cost_estimate_approx_note:"Yaklaşık bir tahmin — DayLoop'ta canlı fiyat verisi yok, bu rakamlar mekân türüne ve bütçe seviyene göre kabaca bir fikir verir, gerçek fiyat değildir.",
     cost_food_label:"Yemek", cost_coffee_label:"Kahve", cost_activities_label:"Aktiviteler", cost_transport_label:"Ulaşım",
     cost_transport_walking_note:"Bu plan tamamen yürüyerek yapılabiliyor — ulaşım masrafı yok.",
+    cost_transport_driving_note:"Araçla — bu tahmine yakıt/otopark maliyeti dahil değil.",
     cost_event_price_unknown:"Etkinlik bilet fiyatı belirtilmemiş — gitmeden önce etkinlik linkini kontrol et.",
     cost_event_label:"Etkinlik",
     cost_range_generic:"Kişi başı yaklaşık {tier}",
@@ -1015,11 +1038,27 @@ function isSafeExternalUrl(url){
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 const METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const OSRM_FOOT_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/';
+// The main public OSRM demo instance — deliberately NOT used for walking
+// (see fetchWalkingRoute's own comment: it only serves the "driving"
+// profile), which is exactly why it's the right endpoint for driving mode.
+const OSRM_CAR_URL = 'https://router.project-osrm.org/route/v1/driving/';
 // Public URL of the DayLoop events proxy (Cloudflare Worker — see worker/README.md).
 // This URL is safe to ship in client code: it holds no secret, the Worker holds the
 // real Ticketmaster key server-side.
 const EVENTS_PROXY_URL = 'https://dayloop-events-proxy.dayloop-dilara.workers.dev';
 const WALK_SPEED_KMH = 4.5;
+// Deliberately a realistic in-town average, not a highway/free-flow speed —
+// this estimates stop-to-stop travel across a single day's plan (traffic
+// lights, parking, short urban hops), not a long open-road drive.
+const DRIVE_SPEED_KMH = 22;
+const TRAVEL_SPEED_KMH = { foot: WALK_SPEED_KMH, car: DRIVE_SPEED_KMH };
+// How much one km of distance-from-previous-stop counts against a candidate
+// during ranking (see rankCandidates) — tuned per mode so "far" means the
+// same thing in travel-time terms regardless of how someone's getting
+// around: 1km on foot costs roughly 13 minutes, 1km by car in city traffic
+// roughly 3 — the car coefficient is scaled down by that same ratio, not
+// picked arbitrarily.
+const DISTANCE_PENALTY_PER_KM = { foot: 0.8, car: 0.18 };
 let currentPlan = null;
 let lastPOIContext = null;
 
@@ -1269,15 +1308,26 @@ function haversineKm(a,b){
   const s1=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(s1),Math.sqrt(1-s1));
 }
-function walkMinutes(km){ return Math.max(3, Math.round((km / WALK_SPEED_KMH) * 60)); }
+// Generalizes walkMinutes below to any transport mode — `mode` defaults to
+// 'foot' so every existing walking-mode call site (and every test written
+// against walkMinutes itself) is completely unaffected by this change.
+// Driving gets a slightly lower floor (2 min vs 3) since even a "just around
+// the corner" drive still means getting in/out of the car.
+function estimateTravelMinutes(km, mode){
+  const speed = TRAVEL_SPEED_KMH[mode] || WALK_SPEED_KMH;
+  const floor = mode === 'car' ? 2 : 3;
+  return Math.max(floor, Math.round((km / speed) * 60));
+}
+function walkMinutes(km){ return estimateTravelMinutes(km, 'foot'); }
 // Sprint 5 launch-readiness fix: total walking commitment was previously only
 // disclosed in the stats strip at the very bottom of a generated plan (see
 // the "the plan is the product, not this" comment further down) — a
 // decision-relevant fact shown last, after the user already invested time
 // reading everything else. This surfaces it once, early, additively — the
 // original stats strip is untouched and still shows the full detail.
-function formatWalkPreview(totalWalkKm, totalWalkMin){
-  return t('walk_preview', { km: totalWalkKm.toFixed(1), min: Math.round(totalWalkMin) });
+function formatWalkPreview(totalWalkKm, totalWalkMin, mode){
+  const key = mode === 'car' ? 'drive_preview' : 'walk_preview';
+  return t(key, { km: totalWalkKm.toFixed(1), min: Math.round(totalWalkMin) });
 }
 function fmtTime(mins){
   const h = Math.floor(mins/60)%24, m = mins%60;
@@ -1880,6 +1930,20 @@ const POI_RADII_WIDE = { cafe:2400, restaurant:2400, bar:3000, nightclub:5000, c
                  bakery:2000, ice_cream:2400, shopping:6000,
                  arts_centre:5000, theatre:6000, escape_room:5000, bookstore:3000, ferry_terminal:4000 };
 
+// Driving mode: a full day's plan can reasonably span a whole city (or
+// nearby towns), not just a walkable core. Scaled per category rather than
+// by one flat multiplier — a "quick coffee" still shouldn't send someone
+// clear across town for it, while a genuinely worth-the-drive viewpoint or
+// museum can sit much further out.
+const POI_RADII_CAR = { cafe:5000, restaurant:5000, bar:6000, nightclub:10000, cinema:12000,
+                 museum:15000, gallery:10000, park:10000, viewpoint:20000, artwork:10000,
+                 bakery:4000, ice_cream:5000, shopping:15000,
+                 arts_centre:12000, theatre:15000, escape_room:12000, bookstore:8000, ferry_terminal:20000 };
+const POI_RADII_CAR_WIDE = { cafe:9000, restaurant:9000, bar:11000, nightclub:16000, cinema:20000,
+                 museum:22000, gallery:16000, park:16000, viewpoint:28000, artwork:16000,
+                 bakery:8000, ice_cream:9000, shopping:22000,
+                 arts_centre:18000, theatre:22000, escape_room:18000, bookstore:13000, ferry_terminal:22000 };
+
 // Below this, a location is treated as sparse enough to justify the extra
 // widened-radius round-trip in fetchPOIs — the same thresholds
 // planDayStructure already uses to decide a "low" density day, applied here
@@ -1921,8 +1985,10 @@ function isSparsePOIResult(pois){
   return pois.length < SPARSE_TOTAL_THRESHOLD || distinctCategories < SPARSE_DISTINCT_THRESHOLD;
 }
 
-async function fetchPOIs(lat,lon,onProgress){
-  const data = await queryOverpass(buildPOIQueryBody(lat, lon, POI_RADII), onProgress);
+async function fetchPOIs(lat,lon,onProgress,mode){
+  const radii = mode === 'car' ? POI_RADII_CAR : POI_RADII;
+  const wideRadii = mode === 'car' ? POI_RADII_CAR_WIDE : POI_RADII_WIDE;
+  const data = await queryOverpass(buildPOIQueryBody(lat, lon, radii), onProgress);
   const pois = normalizePOIElements(data.elements);
   if(!isSparsePOIResult(pois)) return pois;
 
@@ -1934,7 +2000,7 @@ async function fetchPOIs(lat,lon,onProgress){
   // before this change.
   try{
     onProgress?.('Widening search radius…');
-    const wideData = await queryOverpass(buildPOIQueryBody(lat, lon, POI_RADII_WIDE), onProgress);
+    const wideData = await queryOverpass(buildPOIQueryBody(lat, lon, wideRadii), onProgress);
     const widePois = normalizePOIElements(wideData.elements);
     const seen = new Set(pois.map(p=>`${p.osmType}:${p.id}`));
     for(const p of widePois){
@@ -1950,10 +2016,15 @@ async function fetchPOIs(lat,lon,onProgress){
 // Real walking directions via a public OSRM instance that hosts the "foot" profile
 // (the main router.project-osrm.org demo only serves driving). Falls back to null on
 // any failure so the caller can drop back to straight-line distance estimates.
-async function fetchWalkingRoute(points){
+// `mode` selects which real OSRM profile/instance to query — 'car' uses the
+// main public OSRM demo (driving-only, see OSRM_CAR_URL's own comment),
+// 'foot' (the default, and the only mode this function knew about before
+// driving mode existed) keeps using the dedicated foot-profile instance.
+async function fetchRoute(points, mode){
   if(points.length < 2) return null;
+  const baseUrl = mode === 'car' ? OSRM_CAR_URL : OSRM_FOOT_URL;
   const coordStr = points.map(p=>`${p.lon},${p.lat}`).join(';');
-  const url = `${OSRM_FOOT_URL}${coordStr}?overview=full&geometries=geojson`;
+  const url = `${baseUrl}${coordStr}?overview=full&geometries=geojson`;
   try{
     const res = await fetchWithTimeout(url, {}, 8000);
     if(!res.ok) return null;
@@ -1969,6 +2040,7 @@ async function fetchWalkingRoute(points){
     return null;
   }
 }
+function fetchWalkingRoute(points){ return fetchRoute(points, 'foot'); }
 
 // ---------- Decision Layer: scoring, structure, whole-day evaluation ----------
 // scorePOI never sees raw vibe/budget — only the already-resolved Day Intent
@@ -2074,12 +2146,13 @@ function planDayStructure(pois, profile, durationHours){
 }
 
 // Ranks candidates for one slot: distance-adjusted score, highest first.
-function rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts){
+function rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts, mode){
+  const penaltyPerKm = DISTANCE_PENALTY_PER_KM[mode] ?? DISTANCE_PENALTY_PER_KM.foot;
   return candidates
     .map(p => ({ p, d: haversineKm(prev, p) }))
     .sort((a,b)=>{
-      const scoreA = scorePOI(a.p, profile, estMinute, dateStr, usedCategoryCounts) - a.d*0.8;
-      const scoreB = scorePOI(b.p, profile, estMinute, dateStr, usedCategoryCounts) - b.d*0.8;
+      const scoreA = scorePOI(a.p, profile, estMinute, dateStr, usedCategoryCounts) - a.d*penaltyPerKm;
+      const scoreB = scorePOI(b.p, profile, estMinute, dateStr, usedCategoryCounts) - b.d*penaltyPerKm;
       return scoreB - scoreA;
     })
     .map(r=>r.p);
@@ -2137,7 +2210,7 @@ function isSameComplexAsAnyUsed(candidate, used){
 // "evening" slot purely to avoid leaving those slots empty). The cross-slot
 // fallback is reserved for the one place it's actually meant for: guaranteeing
 // the WHOLE DAY isn't empty when literally nothing else is available.
-function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, dateStr, usedCategoryCounts, allowCrossSlotFallback){
+function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, dateStr, usedCategoryCounts, allowCrossSlotFallback, mode){
   const tiers = profile.slotTiers[slotType] || { core:[], acceptable:[], lastResort:[] };
   const excluded = profile.excluded || new Set();
   const notUsed = p => !used.has(p);
@@ -2153,7 +2226,7 @@ function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, d
     if(!cats || !cats.length) continue;
     const candidates = pois.filter(p => cats.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p));
     if(candidates.length){
-      return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: tierName, relaxed: tierName !== 'core' };
+      return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts, mode).slice(0,5), tierUsed: tierName, relaxed: tierName !== 'core' };
     }
   }
   // CONDITIONAL tier (Sprint 7): a category only counts at acceptable-level
@@ -2164,13 +2237,13 @@ function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, d
     const { categories: condCats, test: condTest } = tiers.conditional;
     const condCandidates = pois.filter(p => condCats.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p) && (typeof condTest !== 'function' || condTest(p)));
     if(condCandidates.length){
-      return { top: rankCandidates(condCandidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: 'conditional', relaxed: true };
+      return { top: rankCandidates(condCandidates, profile, prev, estMinute, dateStr, usedCategoryCounts, mode).slice(0,5), tierUsed: 'conditional', relaxed: true };
     }
   }
   if(tiers.lastResort && tiers.lastResort.length){
     const candidates = pois.filter(p => tiers.lastResort.includes(p.category) && notUsed(p) && notExcluded(p) && notConfirmedClosed(p) && notSameComplex(p));
     if(candidates.length){
-      return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: 'lastResort', relaxed: true };
+      return { top: rankCandidates(candidates, profile, prev, estMinute, dateStr, usedCategoryCounts, mode).slice(0,5), tierUsed: 'lastResort', relaxed: true };
     }
   }
   if(allowCrossSlotFallback === false) return { top: [], tierUsed: null, relaxed: false };
@@ -2179,7 +2252,7 @@ function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, d
   // exists — still bounded by the same hard constraints as every tier above.
   const fallback = pois.filter(p => notUsed(p) && notExcluded(p) && notConfirmedClosed(p));
   if(fallback.length){
-    return { top: rankCandidates(fallback, profile, prev, estMinute, dateStr, usedCategoryCounts).slice(0,5), tierUsed: 'crossSlotFallback', relaxed: true };
+    return { top: rankCandidates(fallback, profile, prev, estMinute, dateStr, usedCategoryCounts, mode).slice(0,5), tierUsed: 'crossSlotFallback', relaxed: true };
   }
   return { top: [], tierUsed: null, relaxed: false };
 }
@@ -2188,7 +2261,7 @@ function pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, d
 // length across the assembled sequence — properties invisible to any
 // per-slot score (architecture doc, Principle 8: quality is judged at the
 // level of the whole day, not the stop).
-function evaluateDayPlan(stops, center){
+function evaluateDayPlan(stops, center, mode){
   const categoryCounts = {};
   let backtrackCount = 0, totalDistanceKm = 0, longTransitionCount = 0;
   let prev2 = center, prev1 = center;
@@ -2196,7 +2269,10 @@ function evaluateDayPlan(stops, center){
     categoryCounts[s.poi.category] = (categoryCounts[s.poi.category]||0) + 1;
     const dPrev = haversineKm(prev1, s.poi);
     totalDistanceKm += dPrev;
-    if(walkMinutes(dPrev) > 25) longTransitionCount++;
+    // 25 minutes means something very different on foot vs by car — a long
+    // transition worth flagging is >25 walking minutes OR the mode-adjusted
+    // equivalent (see estimateTravelMinutes/DISTANCE_PENALTY_PER_KM above).
+    if(estimateTravelMinutes(dPrev, mode) > 25) longTransitionCount++;
     if(i>=1){
       const dSkip = haversineKm(prev2, s.poi);
       if(dSkip < dPrev*0.6) backtrackCount++; // meaningfully closer to an earlier stop than to the one right before it
@@ -2210,8 +2286,8 @@ function evaluateDayPlan(stops, center){
   };
 }
 
-function sequencePenalty(stops, center){
-  const ev = evaluateDayPlan(stops, center);
+function sequencePenalty(stops, center, mode){
+  const ev = evaluateDayPlan(stops, center, mode);
   return ev.duplicateCategoryCount*3 + ev.backtrackCount*2 + ev.totalDistanceKm*0.3;
 }
 
@@ -2237,7 +2313,7 @@ function recomputeStopDistances(stops, center){
 // exclusion pickCandidatesForSlot already correctly applied during the
 // original greedy selection, purely to shave a little total walking
 // distance. Now rejected the same way an exact duplicate already was.
-function improveSequence(stops, center){
+function improveSequence(stops, center, mode){
   if(stops.length < 2) return;
   for(let i=0; i<stops.length; i++){
     const stop = stops[i];
@@ -2245,14 +2321,14 @@ function improveSequence(stops, center){
     const original = stop.poi;
     const originalAltIndex = stop.altIndex;
     let bestIdx = originalAltIndex;
-    let bestPenalty = sequencePenalty(stops, center);
+    let bestPenalty = sequencePenalty(stops, center, mode);
     for(let altIdx=0; altIdx<stop.candidates.length; altIdx++){
       if(altIdx === originalAltIndex) continue;
       const alt = stop.candidates[altIdx];
       if(stops.some((s,j)=>j!==i && (s.poi===alt || isSameComplex(s.poi, alt)))) continue;
       stop.poi = alt;
       recomputeStopDistances(stops, center);
-      const penalty = sequencePenalty(stops, center);
+      const penalty = sequencePenalty(stops, center, mode);
       if(penalty < bestPenalty){ bestPenalty = penalty; bestIdx = altIdx; }
       stop.poi = original;
     }
@@ -2334,7 +2410,7 @@ function resolveOpeningHoursConflicts(stops, dateStr, endMin, center){
 // a factual trace. Never touches raw vibe/group/budget/weather — only the
 // already-resolved `profile` (architecture doc, Principle 2).
 function buildItinerary(pois, center, opts){
-  const { profile, dateStr, startMin, endMin } = opts;
+  const { profile, dateStr, startMin, endMin, mode } = opts;
   const durationHours = (endMin-startMin)/60;
   const structure = planDayStructure(pois, profile, durationHours);
   const { slotTypes, stretchFactor } = structure;
@@ -2346,7 +2422,7 @@ function buildItinerary(pois, center, opts){
 
   for(const slotType of slotTypes){
     const estMinute = (estTimes[slotType] ?? startMin) % 1440;
-    const { top, tierUsed, relaxed } = pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, dateStr, usedCategoryCounts, false);
+    const { top, tierUsed, relaxed } = pickCandidatesForSlot(pois, profile, slotType, used, prev, estMinute, dateStr, usedCategoryCounts, false, mode);
     if(!top.length) continue; // nothing fits this slot's own preference structure — skip it rather than force an unrelated category in
     const chosen = top[0];
     used.add(chosen);
@@ -2359,14 +2435,14 @@ function buildItinerary(pois, center, opts){
   // somewhere in the fetched set, make one unrestricted attempt before
   // accepting a genuinely empty day (architecture doc, Principle 5).
   if(!stops.length && pois.length){
-    const { top, tierUsed } = pickCandidatesForSlot(pois, profile, null, used, center, startMin, dateStr, usedCategoryCounts, true);
+    const { top, tierUsed } = pickCandidatesForSlot(pois, profile, null, used, center, startMin, dateStr, usedCategoryCounts, true, mode);
     if(top.length){
       stops.push({ slotType:null, poi: top[0], distFromPrev: haversineKm(center, top[0]), candidates: top, altIndex:0, tierUsed, relaxed:true });
     }
   }
 
-  improveSequence(stops, center);
-  const dayTrace = evaluateDayPlan(stops, center);
+  improveSequence(stops, center, mode);
+  const dayTrace = evaluateDayPlan(stops, center, mode);
   dayTrace.densityTier = structure.densityTier;
   dayTrace.tierBreakdown = stops.reduce((acc,s)=>{ const k=s.tierUsed||'none'; acc[k]=(acc[k]||0)+1; return acc; }, {});
   return { stops, dayTrace, structure };
@@ -2380,12 +2456,12 @@ function computeStopDuration(s, stretchFactor){
   return Math.round(baseDur * factor);
 }
 
-function scheduleStops(stops, startMin, legDurationsMin, stretchFactor){
+function scheduleStops(stops, startMin, legDurationsMin, stretchFactor, mode){
   let t = startMin;
   return stops.map((s,i)=>{
     let walk = 0;
     if(i>0){
-      walk = (legDurationsMin && legDurationsMin[i-1]!=null) ? legDurationsMin[i-1] : walkMinutes(s.distFromPrev);
+      walk = (legDurationsMin && legDurationsMin[i-1]!=null) ? legDurationsMin[i-1] : estimateTravelMinutes(s.distFromPrev, mode);
       t += walk;
     }
     const start = t;
@@ -2417,7 +2493,7 @@ function scheduleStops(stops, startMin, legDurationsMin, stretchFactor){
 // to the same straight-line walk-time estimate used elsewhere when precise
 // route data isn't available, since a moved/replaced stop no longer matches
 // any previously-fetched route leg.
-function anchorEventTimes(stops, startMin, center, stretchFactor){
+function anchorEventTimes(stops, startMin, center, stretchFactor, mode){
   let dirty = false;
   let t = startMin;
   let prevPoi = center;
@@ -2432,7 +2508,7 @@ function anchorEventTimes(stops, startMin, center, stretchFactor){
     dirty = true;
 
     s.distFromPrev = haversineKm(prevPoi, s.poi);
-    const walk = (i===0) ? 0 : walkMinutes(s.distFromPrev);
+    const walk = (i===0) ? 0 : estimateTravelMinutes(s.distFromPrev, mode);
     const naiveStart = t + walk;
 
     if(anchorMin != null){
@@ -2465,7 +2541,7 @@ function anchorEventTimes(stops, startMin, center, stretchFactor){
 }
 
 // ---------- shared plan-building pipeline ----------
-async function generatePlanCore(cityInput, dateStr, startMin, endMin){
+async function generatePlanCore(cityInput, dateStr, startMin, endMin, mode){
   let center;
   const coordMatch = cityInput.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);
   setStatus(t('status_location'));
@@ -2492,7 +2568,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   setStatus(t('status_places'));
   let pois, placesDegraded = false;
   try{
-    pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})));
+    pois = await fetchPOIs(center.lat, center.lon, (msg)=>setStatus(t('status_places_progress',{msg})), mode);
   } catch(fetchErr){
     // Sprint 7: preserve successful data from an earlier attempt when
     // possible, rather than letting one provider failure destroy the whole
@@ -2527,22 +2603,22 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
   return { center, weather, pois, placesDegraded };
 }
 
-async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, group, budget){
+async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, group, budget, mode){
   // Intent Layer: resolve raw selections + weather into one profile before any
   // place is looked at. Decision Layer (buildItinerary) never sees vibe/group/
   // budget/weather directly from here on — only `profile`.
   const profile = buildDayIntentProfile({ vibe, group, budget, weather });
-  const { stops: rawStops, dayTrace, structure } = buildItinerary(pois, center, { profile, dateStr, startMin, endMin });
+  const { stops: rawStops, dayTrace, structure } = buildItinerary(pois, center, { profile, dateStr, startMin, endMin, mode });
   if(!rawStops.length) return null;
   const points = [center, ...rawStops.map(s=>s.poi)];
-  const route = await fetchWalkingRoute(points);
+  const route = await fetchRoute(points, mode);
   const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
-  const stops = scheduleStops(rawStops, startMin, legDurationsForStops, structure.stretchFactor);
+  const stops = scheduleStops(rawStops, startMin, legDurationsForStops, structure.stretchFactor, mode);
   // Sprint 7.1: anchor any selected event to its real, verified start time —
   // must run before resolveOpeningHoursConflicts so an hours-driven shift
   // elsewhere in the day can never be the thing that moves it (see that
   // function's own eventAnchored guard).
-  anchorEventTimes(stops, startMin, center, structure.stretchFactor);
+  anchorEventTimes(stops, startMin, center, structure.stretchFactor, mode);
   // Sprint 7: re-check the FINAL, real schedule against opening hours — the
   // rough estimate used during candidate selection can differ from the
   // actual arrival time once real walking durations are known.
@@ -2551,7 +2627,7 @@ async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, v
   const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
   dayTrace.pacing = evaluatePacing(stops, endMin, profile.pace);
   return {
-    center, weather, dateStr, startMin, endMin, vibe, group, budget,
+    center, weather, dateStr, startMin, endMin, vibe, group, budget, travelMode: mode || 'foot',
     stops, routeGeometry: route ? route.geometry : null, totalWalkKm, totalWalkMin, fromHistory:false,
     stretchFactor: structure.stretchFactor, dayIntentProfile: profile, dayTrace,
   };
@@ -2857,7 +2933,7 @@ function buildSharedPlanDoc(plan, ownerUid, ownerName){
     ownerName: ownerName || '',
     createdAt: Date.now(),
     dateStr: plan.dateStr, startMin: plan.startMin, endMin: plan.endMin,
-    vibe: plan.vibe, group: plan.group, budget: plan.budget,
+    vibe: plan.vibe, group: plan.group, budget: plan.budget, travelMode: plan.travelMode || 'foot',
     center: plan.center, weather: plan.weather,
     stops: plan.stops.map(({candidates, altIndex, ...rest})=>rest),
     totalWalkKm: plan.totalWalkKm, totalWalkMin: plan.totalWalkMin,
@@ -2918,6 +2994,18 @@ document.querySelectorAll('#vibe-chips .chip').forEach(chip=>{
   });
 });
 
+function getSelectedTravelMode(){
+  const active = document.querySelector('#travel-mode-chips .chip.active');
+  return (active && active.dataset.val) || 'foot';
+}
+document.querySelectorAll('#travel-mode-chips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#travel-mode-chips .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    $('travel-mode-hint').textContent = t(chip.dataset.val==='car' ? 'travel_mode_car_hint' : 'travel_mode_foot_hint');
+  });
+});
+
 $('use-loc').addEventListener('click', ()=>{
   if(!navigator.geolocation){ showError(t('error_geoloc_unsupported')); return; }
   selectedCitySuggestion = null;
@@ -2965,7 +3053,8 @@ async function planDay(){
 
   $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    const { center, weather, pois: fetchedPois, placesDegraded } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    const mode = getSelectedTravelMode();
+    const { center, weather, pois: fetchedPois, placesDegraded } = await generatePlanCore(cityInput, dateStr, startMin, endMin, mode);
     if(!fetchedPois.length){
       showError(t('error_no_places'));
       setStatus(''); return;
@@ -2991,7 +3080,7 @@ async function planDay(){
     const budgetVal = parseInt($('budget').value,10);
     setStatus(t('status_building'));
     setStatus(t('status_routing'));
-    const plan = await buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, groupVal, budgetVal);
+    const plan = await buildFullPlan(pois, center, weather, dateStr, startMin, endMin, vibe, groupVal, budgetVal, mode);
     if(!plan){ showError(t('error_no_matches')); setStatus(''); return; }
     currentPlan = plan;
     render();
@@ -3028,12 +3117,13 @@ async function startManualMode(){
 
   $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    const { center, weather, pois: fetchedPois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    const mode = getSelectedTravelMode();
+    const { center, weather, pois: fetchedPois } = await generatePlanCore(cityInput, dateStr, startMin, endMin, mode);
     if(!fetchedPois.length){ showError(t('error_no_places')); setStatus(''); return; }
     const wheelchairOnly = $('wheelchair-only').checked;
     const pois = wheelchairOnly ? filterAccessiblePOIs(fetchedPois) : fetchedPois;
     if(wheelchairOnly && !pois.length){ showError(t('error_no_accessible_places')); setStatus(''); return; }
-    manualContext = { center, weather, dateStr, startMin, endMin, pois };
+    manualContext = { center, weather, dateStr, startMin, endMin, pois, mode };
     manualStops = [];
     manualFilter = 'all';
     renderManualBuilder();
@@ -3144,7 +3234,7 @@ function moveManualStop(i, dir){
   renderManualBuilder();
 }
 async function buildManualPlan(){
-  const { center, weather, dateStr, startMin } = manualContext;
+  const { center, weather, dateStr, startMin, mode } = manualContext;
   const btn = $('manual-build-btn');
   if(btn) btn.disabled = true;
   setStatus(t('status_routing'));
@@ -3156,12 +3246,12 @@ async function buildManualPlan(){
       return { slotType:null, poi, distFromPrev };
     });
     const points = [center, ...manualStops];
-    const route = await fetchWalkingRoute(points);
+    const route = await fetchRoute(points, mode);
     const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
-    const stops = scheduleStops(rawStops, startMin, legDurationsForStops);
+    const stops = scheduleStops(rawStops, startMin, legDurationsForStops, null, mode);
     const totalWalkKm = route ? route.legs.slice(1).reduce((sum,l)=>sum+l.distanceKm,0) : rawStops.slice(1).reduce((sum,r)=>sum+r.distFromPrev,0);
     const totalWalkMin = stops.reduce((sum,st)=>sum+st.walkFromPrev,0);
-    currentPlan = { center, weather, dateStr, startMin, endMin: manualContext.endMin, vibe:null, group:null, budget:null,
+    currentPlan = { center, weather, dateStr, startMin, endMin: manualContext.endMin, vibe:null, group:null, budget:null, travelMode: mode || 'foot',
       stops, routeGeometry: route?route.geometry:null, totalWalkKm, totalWalkMin, fromHistory:false };
     render();
     saveToHistory(currentPlan);
@@ -3188,7 +3278,7 @@ function recomputeAfterSwap(){
   const stops = currentPlan.stops;
   let prev = currentPlan.center;
   stops.forEach(s=>{ s.distFromPrev = haversineKm(prev, s.poi); prev = s.poi; });
-  const rescheduled = scheduleStops(stops, currentPlan.startMin, null, currentPlan.stretchFactor);
+  const rescheduled = scheduleStops(stops, currentPlan.startMin, null, currentPlan.stretchFactor, currentPlan.travelMode);
   currentPlan.stops = rescheduled;
   currentPlan.routeGeometry = null; // manual swap invalidates the fetched route; reverts to straight-line estimate
   currentPlan.totalWalkKm = rescheduled.slice(1).reduce((sum,s)=>sum+s.distFromPrev,0);
@@ -3215,6 +3305,7 @@ function buildShareURL(){
   p.set('vibe', vibe);
   p.set('group', (cp && cp.group) ? cp.group : $('group').value);
   p.set('budget', String((cp && cp.budget) ? cp.budget : $('budget').value));
+  p.set('mode', (cp && cp.travelMode) ? cp.travelMode : getSelectedTravelMode());
   return `${location.origin}${location.pathname}?${p.toString()}`;
 }
 async function onShareClick(){
@@ -3314,7 +3405,7 @@ async function loadSharedPlanFromURL(shareId){
     manualContext = null;
     currentPlan = {
       dateStr: data.dateStr, startMin: data.startMin, endMin: data.endMin,
-      vibe: data.vibe, group: data.group, budget: data.budget,
+      vibe: data.vibe, group: data.group, budget: data.budget, travelMode: data.travelMode || 'foot',
       center: data.center, weather: data.weather, stops: data.stops,
       totalWalkKm: data.totalWalkKm, totalWalkMin: data.totalWalkMin,
       routeGeometry: data.routeGeometry, fromHistory: true,
@@ -3480,7 +3571,7 @@ function saveToHistory(plan){
     const entry = {
       id: Date.now(),
       dateStr: plan.dateStr, startMin: plan.startMin, endMin: plan.endMin,
-      vibe: plan.vibe, group: plan.group, budget: plan.budget,
+      vibe: plan.vibe, group: plan.group, budget: plan.budget, travelMode: plan.travelMode || 'foot',
       center: plan.center, weather: plan.weather,
       stops: plan.stops.map(({candidates, altIndex, ...rest})=>rest),
       totalWalkKm: plan.totalWalkKm, totalWalkMin: plan.totalWalkMin,
@@ -3941,6 +4032,8 @@ function render(){
   const { center, weather, stops, routeGeometry, totalWalkKm, totalWalkMin } = currentPlan;
   const emojiMap = { clear:'☀️', partly_cloudy:'⛅', foggy:'🌫️', rain:'🌧️', snow:'❄️', thunder:'⛈️' };
   const emoji = emojiMap[weather.codeKey] || '☀️';
+  const travelMode = currentPlan.travelMode || 'foot';
+  const travelEmoji = travelMode === 'car' ? '🚗' : '🚶';
 
   // The itinerary is the hero: heading + timeline come first with nothing between
   // them, so it's the first thing a user reads after generating a plan. Everything
@@ -3949,7 +4042,7 @@ function render(){
   if(stops.length > 1){
     // Reuses the existing .mood-hint caption style — no new CSS, consistent
     // with every other small supporting-info line already in the app.
-    html += `<div class="mood-hint" style="margin-top:0;">${escapeHtml(formatWalkPreview(totalWalkKm, totalWalkMin))}</div>`;
+    html += `<div class="mood-hint" style="margin-top:0;">${escapeHtml(formatWalkPreview(totalWalkKm, totalWalkMin, travelMode))}</div>`;
   }
 
   const explanation = (currentPlan.dayIntentProfile && currentPlan.dayTrace)
@@ -3967,7 +4060,7 @@ function render(){
   html += `<div class="timeline">`;
   stops.forEach((s,i)=>{
     if(i>0){
-      html += `<div class="travel">🚶 <span>${s.walkFromPrev} ${escapeHtml(t('min_walk_to_next'))}</span></div>`;
+      html += `<div class="travel">${travelEmoji} <span>${s.walkFromPrev} ${escapeHtml(t(travelMode==='car' ? 'min_drive_to_next' : 'min_walk_to_next'))}</span></div>`;
     }
     const name = placeName(s.poi.tags) || `${t('cat_'+s.poi.category)} ${t('nearby_word')}`;
     const addr = placeAddress(s.poi.tags);
@@ -4072,7 +4165,7 @@ function render(){
   const routeTitle = routeLive ? t('route_live_title') : t('route_estimated_title');
   html += `<div class="summary">
     <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
-    <span>🚶 ${totalWalkKm.toFixed(1)} km ${escapeHtml(t('summary_walk'))}</span>
+    <span>${travelEmoji} ${totalWalkKm.toFixed(1)} km ${escapeHtml(t(travelMode==='car' ? 'summary_drive' : 'summary_walk'))}</span>
     <span>⏱️ ${Math.round(totalWalkMin)} ${escapeHtml(t('min_unit'))}</span>
     <span class="route-badge ${routeLive?'live':''}" tabindex="0" title="${escapeHtml(routeTitle)}" aria-label="${escapeHtml(routeTitle)}">${escapeHtml(routeLive ? t('route_live_badge') : t('route_estimated_badge'))}</span>
   </div>`;
@@ -4091,7 +4184,7 @@ function render(){
       ${fmt.coffee ? `<div class="ps-item"><span>${escapeHtml(t('cost_coffee_label'))}: ${escapeHtml(fmt.coffee)}</span></div>` : ''}
       ${fmt.activities ? `<div class="ps-item"><span>${escapeHtml(t('cost_activities_label'))}: ${escapeHtml(fmt.activities)}</span></div>` : ''}
       ${fmt.event ? `<div class="ps-item"><span>${escapeHtml(t('cost_event_label'))}: ${escapeHtml(fmt.event)}</span></div>` : ''}
-      <div class="ps-item"><span>${escapeHtml(t('cost_transport_label'))}: ${escapeHtml(t('cost_transport_walking_note'))}</span></div>
+      <div class="ps-item"><span>${escapeHtml(t('cost_transport_label'))}: ${escapeHtml(t(travelMode==='car' ? 'cost_transport_driving_note' : 'cost_transport_walking_note'))}</span></div>
       <p class="mood-hint" style="margin:8px 0 0;">${escapeHtml(t('cost_estimate_approx_note'))}</p>
     </div>`;
   }
@@ -4197,6 +4290,11 @@ if('serviceWorker' in navigator){
   }
   if(params.has('group')) $('group').value = params.get('group');
   if(params.has('budget')) $('budget').value = params.get('budget');
+  if(params.has('mode')){
+    const m = params.get('mode');
+    document.querySelectorAll('#travel-mode-chips .chip').forEach(c=>c.classList.toggle('active', c.dataset.val===m));
+    $('travel-mode-hint').textContent = t(m==='car' ? 'travel_mode_car_hint' : 'travel_mode_foot_hint');
+  }
   planDay();
 })();
 </script>
