@@ -566,6 +566,8 @@ const STRINGS = {
     error_no_places:"Not enough map data for this location yet (common in smaller towns). Try a nearby bigger city or a different address.",
     places_degraded_notice:"Live map data was unavailable — using places from your last nearby search instead.",
     error_no_matches:"Could not find enough matching places nearby for this vibe. Try a different vibe or a bigger city.",
+    error_city_not_found:"Could not find \"{city}\". Check the spelling, or try the nearest larger town.",
+    error_generic:"Something went wrong. Please try again.",
     weather_indoor_note:"Leaning indoor for this plan because of the forecast.",
     weather_outdoor_note:"Good conditions — mixing in some outdoor stops.",
     planning_around:"📍 Planning around",
@@ -736,6 +738,8 @@ const STRINGS = {
     error_no_places:"Bu konum için yeterli harita verisi yok henüz (küçük yerleşimlerde sık görülür). Yakındaki daha büyük bir şehri veya başka bir adresi dene.",
     places_degraded_notice:"Canlı harita verisine ulaşılamadı — bunun yerine son yakın aramandaki yerler kullanılıyor.",
     error_no_matches:"Bu mod için yakında yeterli eşleşen yer bulunamadı. Farklı bir mod veya daha büyük bir şehir dene.",
+    error_city_not_found:"\"{city}\" bulunamadı. Yazımını kontrol et ya da en yakın büyük ilçeyi/şehri dene.",
+    error_generic:"Bir şeyler ters gitti. Lütfen tekrar dene.",
     weather_indoor_note:"Hava durumu nedeniyle plan kapalı mekanlara ağırlık veriyor.",
     weather_outdoor_note:"Hava uygun — plana biraz dış mekan da katıyoruz.",
     planning_around:"📍 Planlanan konum",
@@ -1548,12 +1552,34 @@ async function fetchWithTimeout(url, options={}, timeoutMs=9000){
 // estimateDailyCost) instead of guessing a country from the display-name
 // text, which previously broke silently for coordinate input (Sprint 6
 // acceptance finding).
+// A real-world acceptance finding: geocoding a small town (e.g. Ardanuç)
+// while actually there, on a patchy rural mobile connection, surfaced a raw
+// English "Timed out…"/network error straight from fetchWithTimeout — never
+// localized, and confusing since it looks identical to a genuine "no such
+// place" result. This adds exactly ONE retry after a short pause (the same
+// bounded pattern already used for Overpass, see queryOverpass) since a
+// second attempt is the cheapest honest way to recover from a transient
+// mobile-network blip, and every failure path now throws a real, localized
+// message instead of raw fetch/HTTP text.
+async function geocodeCityAttempt(url){
+  const res = await fetchWithTimeout(url, { headers: { 'Accept-Language':'en' } }, 9000);
+  if(!res.ok) throw new Error(`Nominatim responded ${res.status}`);
+  return res.json();
+}
 async function geocodeCity(q){
   const url = `${NOMINATIM_URL}?format=jsonv2&q=${encodeURIComponent(q)}&limit=1&addressdetails=1`;
-  const res = await fetchWithTimeout(url, { headers: { 'Accept-Language':'en' } }, 9000);
-  if(!res.ok) throw new Error('Geocoding failed');
-  const data = await res.json();
-  if(!data.length) throw new Error(`Could not find "${q}". Try a more specific place name.`);
+  let data;
+  try{
+    data = await geocodeCityAttempt(url);
+  }catch(e){
+    await sleep(1200);
+    try{
+      data = await geocodeCityAttempt(url);
+    }catch(e2){
+      throw new Error(t('autherr_network'));
+    }
+  }
+  if(!data.length) throw new Error(t('error_city_not_found', { city: q }));
   return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), label: data[0].display_name, countryCode: data[0].address?.country_code || null };
 }
 
@@ -2754,7 +2780,7 @@ async function planDay(){
     setStatus('');
   } catch(e){
     console.error(e);
-    showError(e.message || 'Something went wrong. Please try again.');
+    showError(e.message || t('error_generic'));
     setStatus('');
   } finally {
     $('go').disabled = false; $('manual-btn').disabled = false;
@@ -2792,7 +2818,7 @@ async function startManualMode(){
     setStatus('');
   } catch(e){
     console.error(e);
-    showError(e.message || 'Something went wrong. Please try again.');
+    showError(e.message || t('error_generic'));
     setStatus('');
   } finally {
     $('go').disabled = false; $('manual-btn').disabled = false;
@@ -2920,7 +2946,7 @@ async function buildManualPlan(){
     setStatus('');
   } catch(e){
     console.error(e);
-    showError(e.message || 'Something went wrong. Please try again.');
+    showError(e.message || t('error_generic'));
     setStatus('');
   } finally {
     if($('manual-build-btn')) $('manual-build-btn').disabled = false;
