@@ -103,6 +103,10 @@
   }
   .chip.active{border-color:var(--accent); color:var(--text); background:rgba(var(--accent-rgb),0.14);}
   .mood-hint{color:var(--muted); font-size:0.85rem; margin:0 0 10px;}
+  .checkbox-row{width:100%;}
+  .checkbox-label{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.92rem;color:var(--text);}
+  .checkbox-label input[type=checkbox]{width:20px;height:20px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;}
+  .checkbox-row .mood-hint{margin:6px 0 0 30px;}
   .customize-toggle{
     background:none; border:none; color:var(--accent2); font-size:0.82rem; cursor:pointer; padding:0;
     text-decoration:underline; text-underline-offset:3px;
@@ -169,7 +173,7 @@
   .stop h3{margin:8px 0 4px;font-size:1.4rem;font-weight:600;font-family:var(--font-display);letter-spacing:-0.2px;}
   .stop .cat{color:var(--muted);font-size:0.78rem;letter-spacing:0.02em;}
   .stop .addr{color:var(--muted);font-size:0.86rem;margin-top:8px;line-height:1.5;}
-  .confidence-badge{display:inline-block;font-size:0.74rem;font-weight:600;color:var(--muted);cursor:help;margin-top:12px;}
+  .confidence-badge{display:inline-block;font-size:0.74rem;font-weight:600;color:var(--muted);cursor:help;margin-top:12px;margin-right:12px;}
   .confidence-note{color:var(--muted);font-size:0.8rem;margin-top:4px;line-height:1.5;}
   .stop-reason{color:var(--muted);font-size:0.8rem;margin-top:4px;line-height:1.5;}
   .stop-actions{display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;align-items:center;}
@@ -418,6 +422,16 @@
           <option value="2" selected data-i18n="budget_2">$$ — normal</option>
           <option value="3" data-i18n="budget_3">$$$ — treat yourself</option>
         </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="wheelchair-only">
+          <span data-i18n="wheelchair_only_label">Only show wheelchair-accessible places</span>
+        </label>
+        <p class="mood-hint" data-i18n="wheelchair_only_hint">Filters to places OpenStreetMap has confirmed as fully accessible — narrows results, especially in smaller towns where this is rarely tagged at all.</p>
       </div>
     </div>
 
@@ -682,6 +696,14 @@ const STRINGS = {
     badge_opens_at_title:"Listed hours suggest this spot is closed right now but opens later today.",
     badge_closed_today_title:"Listed hours suggest this spot won't reopen again today.",
     badge_unverified_title:"This place has no opening-hours data DayLoop could parse — verify before you go.",
+    // ---------- accessibility (wheelchair) ----------
+    badge_wheelchair_yes:"♿ Wheelchair accessible", badge_wheelchair_limited:"♿ Limited wheelchair access", badge_wheelchair_no:"🚫 Not wheelchair accessible",
+    badge_wheelchair_yes_title:"Tagged as fully wheelchair accessible in OpenStreetMap.",
+    badge_wheelchair_limited_title:"Tagged as only partially/with-difficulty wheelchair accessible in OpenStreetMap — worth checking directly before you go.",
+    badge_wheelchair_no_title:"Tagged as not wheelchair accessible in OpenStreetMap.",
+    wheelchair_only_label:"Only show wheelchair-accessible places",
+    wheelchair_only_hint:"Filters to places OpenStreetMap has confirmed as fully accessible — narrows results, especially in smaller towns where this is rarely tagged at all.",
+    error_no_accessible_places:"No confirmed wheelchair-accessible places found nearby — OpenStreetMap may simply not have this tagged here yet. Try a bigger city, or turn the filter off to see everything nearby.",
     // ---------- Sprint 6: approximate daily cost estimate ----------
     cost_estimate_title:"Estimated cost today",
     cost_estimate_approx_note:"Approximate — DayLoop has no live price data, this is a rough guide based on venue type and your budget level, not confirmed prices.",
@@ -866,6 +888,14 @@ const STRINGS = {
     badge_opens_at_title:"Belirtilen saatlere göre şu anda kapalı ama bugün ilerleyen saatte açılıyor.",
     badge_closed_today_title:"Belirtilen saatlere göre bugün tekrar açılmayacak gibi görünüyor.",
     badge_unverified_title:"Bu mekân için DayLoop'un okuyabildiği bir çalışma saati verisi yok — gitmeden önce kontrol et.",
+    // ---------- erişilebilirlik (tekerlekli sandalye) ----------
+    badge_wheelchair_yes:"♿ Tekerlekli sandalyeye uygun", badge_wheelchair_limited:"♿ Sınırlı erişilebilirlik", badge_wheelchair_no:"🚫 Tekerlekli sandalyeye uygun değil",
+    badge_wheelchair_yes_title:"OpenStreetMap'te tam tekerlekli sandalye erişimine uygun olarak işaretlenmiş.",
+    badge_wheelchair_limited_title:"OpenStreetMap'te kısmen/zorlukla erişilebilir olarak işaretlenmiş — gitmeden önce doğrudan kontrol etmekte fayda var.",
+    badge_wheelchair_no_title:"OpenStreetMap'te tekerlekli sandalyeye uygun değil olarak işaretlenmiş.",
+    wheelchair_only_label:"Sadece tekerlekli sandalyeye uygun mekanları göster",
+    wheelchair_only_hint:"OpenStreetMap'te tam erişilebilir olarak onaylanmış mekanlarla sınırlar — özellikle küçük yerleşimlerde bu bilgi nadiren işaretlendiği için sonuçları daraltabilir.",
+    error_no_accessible_places:"Yakında onaylı tekerlekli sandalye erişimine uygun mekân bulunamadı — OpenStreetMap'te bu bilgi henüz işaretlenmemiş olabilir. Daha büyük bir şehir dene, ya da her şeyi görmek için filtreyi kapat.",
     // ---------- Sprint 6: yaklaşık günlük maliyet tahmini ----------
     cost_estimate_title:"Bugünün tahmini maliyeti",
     cost_estimate_approx_note:"Yaklaşık bir tahmin — DayLoop'ta canlı fiyat verisi yok, bu rakamlar mekân türüne ve bütçe seviyene göre kabaca bir fikir verir, gerçek fiyat değildir.",
@@ -1575,6 +1605,30 @@ function stopConfidence(poi, dateStr, minuteOfDay){
     return { cls:'closed', label:t('badge_closed_today'), title:t('badge_closed_today_title'), note:null };
   }
   return { cls:'unknown', label:t('badge_unverified'), title:t('badge_unverified_title'), note:null };
+}
+
+// ---------- accessibility (wheelchair) ----------
+// Same honesty rule as stopConfidence above: OSM's own wheelchair=yes/
+// limited/no tag, never a guess from category/name/anything else — a badge
+// is shown only when the tag actually exists; no tag means no badge, not an
+// invented "no" (very different real-world meanings, and openly conflating
+// them would be actively harmful for someone relying on this).
+function accessibilityBadge(tags){
+  const v = tags && tags.wheelchair;
+  if(v === 'yes') return { cls:'access-yes', label:t('badge_wheelchair_yes'), title:t('badge_wheelchair_yes_title') };
+  if(v === 'limited') return { cls:'access-limited', label:t('badge_wheelchair_limited'), title:t('badge_wheelchair_limited_title') };
+  if(v === 'no') return { cls:'access-no', label:t('badge_wheelchair_no'), title:t('badge_wheelchair_no_title') };
+  return null;
+}
+// The "wheelchair accessible only" planner toggle: a HARD filter, applied to
+// the candidate pool before any scoring/planning happens, never a soft
+// preference — "limited" and unknown are excluded right alongside "no",
+// since neither is a confirmed "yes" a wheelchair user could actually rely
+// on. Never silently falls back to non-accessible places when this narrows
+// the pool to nothing (see the error_no_accessible_places caller) — an
+// honest empty result beats a plan that quietly ignores a real access need.
+function filterAccessiblePOIs(pois){
+  return pois.filter(p => p.tags && p.tags.wheelchair === 'yes');
 }
 
 // ---------- API calls ----------
@@ -2911,14 +2965,26 @@ async function planDay(){
 
   $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    const { center, weather, pois, placesDegraded } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
-    if(!pois.length){
+    const { center, weather, pois: fetchedPois, placesDegraded } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    if(!fetchedPois.length){
       showError(t('error_no_places'));
       setStatus(''); return;
     }
     // Sprint 7: never a SILENT fallback — if place data came from a cached
     // nearby fetch because the live one failed, say so plainly.
     if(placesDegraded) showToast(t('places_degraded_notice'));
+
+    // Accessibility: a HARD filter applied before any scoring/planning, and
+    // reported honestly as its own distinct empty-result error rather than
+    // folded into the generic "no places" message above — a wheelchair user
+    // narrowing results this way needs to know THAT'S why nothing came back,
+    // not guess between a genuine data gap and their own filter choice.
+    const wheelchairOnly = $('wheelchair-only').checked;
+    const pois = wheelchairOnly ? filterAccessiblePOIs(fetchedPois) : fetchedPois;
+    if(wheelchairOnly && !pois.length){
+      showError(t('error_no_accessible_places'));
+      setStatus(''); return;
+    }
 
     const vibe = document.querySelector('#vibe-chips .chip.active').dataset.val;
     const groupVal = $('group').value;
@@ -2962,8 +3028,11 @@ async function startManualMode(){
 
   $('go').disabled = true; $('manual-btn').disabled = true;
   try{
-    const { center, weather, pois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
-    if(!pois.length){ showError(t('error_no_places')); setStatus(''); return; }
+    const { center, weather, pois: fetchedPois } = await generatePlanCore(cityInput, dateStr, startMin, endMin);
+    if(!fetchedPois.length){ showError(t('error_no_places')); setStatus(''); return; }
+    const wheelchairOnly = $('wheelchair-only').checked;
+    const pois = wheelchairOnly ? filterAccessiblePOIs(fetchedPois) : fetchedPois;
+    if(wheelchairOnly && !pois.length){ showError(t('error_no_accessible_places')); setStatus(''); return; }
     manualContext = { center, weather, dateStr, startMin, endMin, pois };
     manualStops = [];
     manualFilter = 'all';
@@ -3911,6 +3980,7 @@ function render(){
     const canSwap = s.candidates && s.candidates.length > 1;
     const igLink = placeInstagram(s.poi.tags);
     const conf = stopConfidence(s.poi, currentPlan.dateStr, s.start);
+    const access = accessibilityBadge(s.poi.tags);
     const reasonText = explanation ? explanation.stopReasons[i] : null;
     html += `<div class="stop" id="stop-card-${i}" onclick="if(!event.target.closest('a,button')) focusMapMarker(${i})">
       <div class="stop-marker" aria-hidden="true">${i+1}</div>
@@ -3919,6 +3989,7 @@ function render(){
       <div class="cat">${escapeHtml(t('cat_'+s.poi.category))}</div>
       ${addr?`<div class="addr">${escapeHtml(addr)}</div>`:''}
       <span class="confidence-badge ${conf.cls}" tabindex="0" title="${escapeHtml(conf.title)}" aria-label="${escapeHtml(conf.title)}">${escapeHtml(conf.label)}</span>
+      ${access ? `<span class="confidence-badge ${access.cls}" tabindex="0" title="${escapeHtml(access.title)}" aria-label="${escapeHtml(access.title)}">${escapeHtml(access.label)}</span>` : ''}
       ${conf.note ? `<div class="confidence-note">${escapeHtml(conf.note)}</div>` : ''}
       ${reasonText ? `<div class="stop-reason">${escapeHtml(reasonText)}</div>` : ''}
       <div class="stop-actions">
