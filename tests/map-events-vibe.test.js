@@ -270,3 +270,108 @@ test('explainPlan only claims vibe-based exclusions when the resolved profile ac
     assert.ok(profile.excluded.has('ferry_terminal'), 'if an exclusion is named, it must be a real, resolved exclusion');
   }
 });
+
+// ---------------------------------------------------------------------------
+// Sprint 7.1: event start-time anchoring. A selected event candidate carries
+// its own real, verified startTime — the generic walking-time scheduler must
+// never invent a different one for it, and the rest of the day must be
+// arranged around that fixed point without corrupting the schedule.
+// ---------------------------------------------------------------------------
+
+test('a selected event is scheduled at its own real, verified start time — not the generic slot estimate', () => {
+  const rawEvent = { id:'ev10', name:'Real Jazz Night', startDate: DATE_STR, startTime:'19:30:00', lat: CENTER.lat+0.001, lon: CENTER.lon+0.001, venueName:'Jazz Club' };
+  const eventCand = eng.normalizeEventAsCandidate(rawEvent, DATE_STR, 10*60, 23*60);
+  assert.ok(eventCand, 'a same-date event with real coordinates and a verified time inside the window must be a valid candidate');
+  const early = poi('cafe', { lat: CENTER.lat, lon: CENTER.lon });
+  const stops = [
+    stop({ p: early, candidates: [early], start: 10*60, end: 10*60+45 }),
+    // deliberately gives it a naive estimate nowhere near the real time, the
+    // way a generic evening slot estimate would
+    stop({ p: eventCand, candidates: [eventCand], start: 11*60, end: 12*60+45 }),
+  ];
+  eng.anchorEventTimes(stops, 10*60, CENTER, 1);
+  assert.equal(stops[1].start, 19*60+30, 'the event stop must be scheduled at its own real start time, not the naive estimate');
+  assert.equal(stops[1].eventAnchored, true);
+});
+
+test('an event outside the requested day window is never selected, even though its date matches', () => {
+  const tooEarly = { id:'ev11', name:'Breakfast Rave', startDate: DATE_STR, startTime:'07:00:00', lat: CENTER.lat, lon: CENTER.lon };
+  assert.equal(eng.normalizeEventAsCandidate(tooEarly, DATE_STR, 10*60, 20*60), null, 'an event starting before the requested window must not become a candidate');
+
+  const tooLate = { id:'ev12', name:'Closing Set', startDate: DATE_STR, startTime:'23:30:00', lat: CENTER.lat, lon: CENTER.lon };
+  assert.equal(eng.normalizeEventAsCandidate(tooLate, DATE_STR, 10*60, 20*60), null, 'an event that would still be running past the requested end time must not become a candidate');
+
+  const inWindow = { id:'ev13', name:'Afternoon Show', startDate: DATE_STR, startTime:'14:00:00', lat: CENTER.lat, lon: CENTER.lon };
+  assert.ok(eng.normalizeEventAsCandidate(inWindow, DATE_STR, 10*60, 20*60), 'an event that starts and finishes inside the requested window must still be a valid candidate');
+});
+
+test('an event with no verified start time is never selected, even with a matching date and real coordinates', () => {
+  const noTime = { id:'ev14', name:'Mystery Timing Event', startDate: DATE_STR, startTime: null, lat: CENTER.lat, lon: CENTER.lon };
+  assert.equal(eng.normalizeEventAsCandidate(noTime, DATE_STR), null, 'an event with no verified start time can never be anchored, so it must not become a candidate at all');
+});
+
+test('stops after an anchored event start only once the event has actually ended, and stops before it do not overlap it either', () => {
+  const rawEvent = { id:'ev15', name:'Anchor Show', startDate: DATE_STR, startTime:'14:00:00', lat: CENTER.lat+0.002, lon: CENTER.lon+0.002 };
+  const eventCand = eng.normalizeEventAsCandidate(rawEvent, DATE_STR, 10*60, 20*60);
+  const before = poi('cafe', { lat: CENTER.lat, lon: CENTER.lon });
+  const after = poi('restaurant', { lat: CENTER.lat+0.003, lon: CENTER.lon+0.003 });
+  const stops = [
+    stop({ p: before, candidates: [before], start: 10*60, end: 10*60+45 }),
+    stop({ p: eventCand, candidates: [eventCand], start: 11*60, end: 11*60+45 }),
+    stop({ p: after, candidates: [after], start: 12*60, end: 13*60 }),
+  ];
+  eng.anchorEventTimes(stops, 10*60, CENTER, 1);
+  const [s0, s1, s2] = stops;
+  assert.equal(s1.start, 14*60);
+  assert.ok(s0.end <= s1.start, 'the stop before the event must not overlap it');
+  assert.ok(s2.start >= s1.end, `the stop after the event must not start before the event ends (event ends ${s1.end}, next starts ${s2.start})`);
+});
+
+test('an opening-hours shift earlier in the day never moves an already-anchored event', () => {
+  const shiftsLater = poi('museum', { name:'Opens Late', opening_hours:'Mo-Su 11:00-18:00' });
+  const rawEvent = { id:'ev16', name:'Fixed Show', startDate: DATE_STR, startTime:'14:00:00', lat: CENTER.lat+0.001, lon: CENTER.lon+0.001 };
+  const eventCand = eng.normalizeEventAsCandidate(rawEvent, DATE_STR, 10*60, 20*60);
+  const stops = [
+    stop({ p: shiftsLater, start: 10*60+50, end: 12*60+20 }), // arrives 10 min before opening — will be shifted later
+    { poi: eventCand, distFromPrev: 0.3, candidates: [eventCand], altIndex: 0, tierUsed: 'acceptable', relaxed: true,
+      start: 14*60, end: 16*60, walkFromPrev: 5, eventAnchored: true },
+  ];
+  eng.resolveOpeningHoursConflicts(stops, DATE_STR, 20*60, CENTER);
+  assert.equal(stops[0].scheduleAdjustedForHours, true, 'sanity check: the earlier stop really was shifted for its own opening hours');
+  assert.equal(stops[1].start, 14*60, 'the anchored event must keep its real start time despite an earlier stop\'s shift');
+  assert.equal(stops[1].end, 16*60, 'the anchored event end must also stay untouched');
+});
+
+test('when an event cannot be reached in time and no alternate exists, it is dropped rather than corrupting the schedule', () => {
+  const rawEvent = { id:'ev17', name:'Impossible Timing Show', startDate: DATE_STR, startTime:'09:50:00', lat: CENTER.lat+0.05, lon: CENTER.lon+0.05 };
+  const eventCand = eng.normalizeEventAsCandidate(rawEvent, DATE_STR, 9*60, 20*60);
+  const before = poi('cafe', { lat: CENTER.lat, lon: CENTER.lon });
+  const after = poi('restaurant', { lat: CENTER.lat+0.06, lon: CENTER.lon+0.06 });
+  const stops = [
+    stop({ p: before, candidates: [before], start: 9*60, end: 9*60+45 }), // ends 09:45 — far too late to reach a 5.5km-away 09:50 event
+    stop({ p: eventCand, candidates: [eventCand], start: 10*60, end: 10*60+45 }),
+    stop({ p: after, candidates: [after], start: 11*60, end: 12*60 }),
+  ];
+  const result = eng.anchorEventTimes(stops, 9*60, CENTER, 1);
+  assert.ok(result.every(s => s.poi.category !== 'event'), 'an unreachable event must not remain in the itinerary');
+  assert.equal(result.length, 2, 'the day shrinks honestly rather than keeping a corrupted stop');
+  for(let i=1;i<result.length;i++){
+    assert.ok(result[i].start >= result[i-1].end, `stop ${i} must not start before stop ${i-1} ends (no overlap)`);
+  }
+  result.forEach(s => assert.ok(s.start < s.end, 'every remaining stop must have a valid, positive duration'));
+});
+
+test('when an event cannot be reached in time but a non-event alternate exists in the same slot, the alternate is used instead', () => {
+  const rawEvent = { id:'ev18', name:'Impossible Timing Show 2', startDate: DATE_STR, startTime:'09:50:00', lat: CENTER.lat+0.05, lon: CENTER.lon+0.05 };
+  const eventCand = eng.normalizeEventAsCandidate(rawEvent, DATE_STR, 9*60, 20*60);
+  const altBar = poi('bar', { name:'Nearby Bar', lat: CENTER.lat+0.001, lon: CENTER.lon+0.001 });
+  const before = poi('cafe', { lat: CENTER.lat, lon: CENTER.lon });
+  const stops = [
+    stop({ p: before, candidates: [before], start: 9*60, end: 9*60+45 }),
+    stop({ p: eventCand, candidates: [eventCand, altBar], start: 10*60, end: 10*60+45 }),
+  ];
+  const result = eng.anchorEventTimes(stops, 9*60, CENTER, 1);
+  assert.equal(result.length, 2, 'no stop should be dropped when a usable non-event alternate exists');
+  assert.equal(result[1].poi.tags.name, 'Nearby Bar', 'an unreachable event falls back to its own already-ranked non-event alternate');
+  assert.ok(result[1].start >= result[0].end, 'the substituted stop must still not overlap the previous one');
+});

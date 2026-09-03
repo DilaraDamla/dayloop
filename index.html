@@ -3,12 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!--
+  Sprint 1 security hardening — Content-Security-Policy.
+  Placed as early as possible in <head> so it governs every resource that
+  follows. GitHub Pages (plain static hosting, no custom server) can't send a
+  CSP as an HTTP response header, so this is the strongest form available:
+  a meta tag. Known, accepted limitation: DayLoop's whole app lives in one
+  inline script block and still uses some inline onclick="..." attributes
+  and inline style="..." attributes (see CLAUDE.md — this is a deliberate,
+  documented single-file architecture, not an oversight), so script-src and
+  style-src must include 'unsafe-inline' — a meta-tag CSP also cannot set
+  frame-ancestors or sandbox at all (browsers ignore those two directives
+  outside a real HTTP header, per spec), so this is NOT clickjacking
+  protection. What this CSP DOES meaningfully restrict even with
+  'unsafe-inline' present: exactly which domains this page can ever load a
+  script/style/image from, exactly which domains it can ever send a
+  fetch/XHR to (connect-src — every real API this app calls, and nothing
+  else), and it blocks <object>/<embed>, base-tag hijacking, and non-self
+  form submission outright. See docs/security/manual-owner-actions.md and
+  the Sprint 1 report for the real future fix (externalize the script, drop
+  inline handlers, move to a nonce/hash-based CSP delivered as a true HTTP
+  header on a host that supports one).
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: https://*.tile.openstreetmap.org https://*.ticketm.net; font-src 'self'; connect-src 'self' https://nominatim.openstreetmap.org https://api.open-meteo.com https://overpass-api.de https://overpass.kumi.systems https://maps.mail.ru https://api.allorigins.win https://routing.openstreetmap.de https://dayloop-events-proxy.dayloop-dilara.workers.dev https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src 'self' https://dayloop-v2.firebaseapp.com; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
 <title>DayLoop — plan your day, anywhere</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0f1115">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --border:#2a2f3a;
@@ -392,10 +415,10 @@
   <div id="plan-actions"></div>
 
   <footer>
-    Place data © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors ·
-    Geocoding via <a href="https://nominatim.org" target="_blank">Nominatim</a> ·
-    Weather via <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> ·
-    Routing via <a href="https://routing.openstreetmap.de" target="_blank">OSRM</a><br>
+    Place data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors ·
+    Geocoding via <a href="https://nominatim.org" target="_blank" rel="noopener noreferrer">Nominatim</a> ·
+    Weather via <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> ·
+    Routing via <a href="https://routing.openstreetmap.de" target="_blank" rel="noopener noreferrer">OSRM</a><br>
     <span data-i18n="footer_note">Prototype — walking times are estimates, always double-check opening hours before you go.</span>
   </footer>
 </div>
@@ -446,6 +469,7 @@
     </div></div>
     <div id="auth-error"></div>
     <button class="submit" id="auth-primary-btn" data-i18n="signin_action">Sign in</button>
+    <button type="button" class="customize-toggle" id="auth-forgot-btn" style="display:block;width:100%;text-align:center;margin-top:8px;" data-i18n="forgot_password_link">Forgot password?</button>
     <button type="button" class="customize-toggle" id="auth-mode-toggle" style="display:block;width:100%;text-align:center;margin-top:12px;" data-i18n="signup_prompt">Don't have an account? Create one</button>
     <div class="divider-row"><span data-i18n="or_divider">or</span></div>
     <button type="button" class="google-btn" id="auth-google-btn">
@@ -466,7 +490,12 @@
         <div class="account-sub" id="auth-user-sub" data-i18n="signed_in_label">Account</div>
       </div>
     </div>
+    <div id="auth-verify-notice" style="display:none;">
+      <p class="mood-hint" data-i18n="verification_needed_note">Please verify your email address — check your inbox.</p>
+      <button type="button" class="customize-toggle" id="auth-resend-verify-btn" style="width:100%;" data-i18n="resend_verification_btn">Resend verification email</button>
+    </div>
     <button class="again" id="auth-signout-btn" style="width:100%;margin-top:22px;" data-i18n="signout_action">Sign out</button>
+    <button type="button" class="customize-toggle" id="auth-delete-account-btn" style="display:block;width:100%;text-align:center;margin-top:12px;color:var(--accent);" data-i18n="delete_account_btn">Delete account</button>
   </div>
 </div>
 
@@ -483,9 +512,23 @@
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/tr.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/tr.js" integrity="sha384-Y7O43PM3w1lzpD9Tbq06VLD7WvMJZsaVsjXBZ4rAzAPqUdizcCJYmImbIXN6f2+r" crossorigin="anonymous"></script>
+<!--
+  Sprint 1: the three Firebase compat SDK scripts below deliberately do NOT
+  have an integrity= attribute. Every OTHER pinned CDN asset here (Leaflet,
+  Flatpickr) was independently cross-verified in this sprint — the exact
+  bytes served from the CDN URL index.html actually uses were hashed locally
+  AND matched against jsdelivr's own independently-computed hash API for the
+  same npm-published version, a genuine second source, not just re-hashing
+  the same download. No equivalent independent, version-matched artifact
+  exists to cross-check Google's gstatic firebasejs bundles against in this
+  environment, and inventing a hash without that verification would fail
+  closed (silently break sign-in for every visitor) the moment Google
+  changes anything about how that bundle is packaged. Documented rather than
+  guessed, per this sprint's explicit instruction not to invent SRI hashes.
+-->
 <script>
 const $ = id => document.getElementById(id);
 
@@ -539,6 +582,7 @@ const STRINGS = {
     history_btn:"🕘 Saved plans", history_title:"Saved plans", history_empty:"No saved plans yet.",
     history_clear:"Clear all", history_clear_confirm:"Delete all saved plans?",
     history_delete:"Delete", history_load:"View",
+    cloud_delete_failed:"Removed here, but couldn't remove it from your synced account — it may still show up on your other devices. Try again when you're back online.",
     wishlist_btn:"♡ Wish List", wishlist_title:"Wish List", wishlist_empty:"No saved places yet.",
     wishlist_save:"♡ Save", wishlist_saved:"Saved", wishlist_remove:"Remove", wishlist_added:"Saved to your Wish List.", wishlist_duplicate:"This place is already in your Wish List.",
     share_import_added:"Added from your share — building a day around it.", share_import_manual:"Couldn't read a place from what you shared — type it in below.", share_import_failed:"Couldn't find that place. Try typing it in below.",
@@ -648,6 +692,17 @@ const STRINGS = {
     autherr_network:"Network error — check your connection and try again.",
     autherr_popup_closed:"Sign-in window was closed before finishing.",
     autherr_unauthorized_domain:"This site isn't authorized for sign-in yet — add it under Authentication > Settings > Authorized domains in Firebase.",
+    forgot_password_link:"Forgot password?",
+    password_reset_sent:"If an account exists for that email, a password reset link is on its way.",
+    resend_verification_btn:"Resend verification email",
+    verification_needed_note:"Please verify your email address — check your inbox.",
+    verification_sent_toast:"Verification email sent — check your inbox.",
+    delete_account_btn:"Delete account",
+    delete_account_confirm:"This permanently deletes your account and its synced data. This can't be undone. Continue?",
+    delete_account_success_toast:"Your account has been deleted.",
+    delete_account_error:"Couldn't delete your account. Please try again.",
+    delete_account_reauth_needed:"For your security, please confirm your password to delete your account.",
+    reauth_password_prompt:"Re-enter your password to confirm:",
     lang_toggle:"TR",
   },
   tr:{
@@ -697,6 +752,7 @@ const STRINGS = {
     history_btn:"🕘 Kayıtlı planlar", history_title:"Kayıtlı planlar", history_empty:"Henüz kayıtlı plan yok.",
     history_clear:"Tümünü temizle", history_clear_confirm:"Tüm kayıtlı planlar silinsin mi?",
     history_delete:"Sil", history_load:"Görüntüle",
+    cloud_delete_failed:"Burada kaldırıldı, ancak senkronize hesabından kaldırılamadı — diğer cihazlarında hâlâ görünebilir. Tekrar çevrimiçi olduğunda yeniden dene.",
     wishlist_btn:"♡ İstek Listesi", wishlist_title:"İstek Listesi", wishlist_empty:"Henüz kaydedilmiş mekân yok.",
     wishlist_save:"♡ Kaydet", wishlist_saved:"Kaydedildi", wishlist_remove:"Sil", wishlist_added:"İstek Listene kaydedildi.", wishlist_duplicate:"Bu mekân zaten İstek Listende.",
     share_import_added:"Paylaşımından eklendi — etrafında bir gün planlanıyor.", share_import_manual:"Paylaştığın içerikten bir mekân çıkaramadık — aşağıya yazabilirsin.", share_import_failed:"O mekân bulunamadı. Aşağıya yazmayı dene.",
@@ -806,6 +862,17 @@ const STRINGS = {
     autherr_network:"Ağ hatası — bağlantını kontrol edip tekrar dene.",
     autherr_popup_closed:"Giriş penceresi tamamlanmadan kapandı.",
     autherr_unauthorized_domain:"Bu site henüz giriş için yetkili değil — Firebase'de Authentication > Settings > Authorized domains altına ekle.",
+    forgot_password_link:"Şifreni mi unuttun?",
+    password_reset_sent:"Bu e-postayla bir hesap varsa, şifre sıfırlama bağlantısı yola çıktı.",
+    resend_verification_btn:"Doğrulama e-postasını tekrar gönder",
+    verification_needed_note:"Lütfen e-posta adresini doğrula — gelen kutunu kontrol et.",
+    verification_sent_toast:"Doğrulama e-postası gönderildi — gelen kutunu kontrol et.",
+    delete_account_btn:"Hesabı sil",
+    delete_account_confirm:"Bu, hesabını ve senkronize verilerini kalıcı olarak siler. Bu işlem geri alınamaz. Devam edilsin mi?",
+    delete_account_success_toast:"Hesabın silindi.",
+    delete_account_error:"Hesabın silinemedi. Lütfen tekrar dene.",
+    delete_account_reauth_needed:"Güvenliğin için, hesabını silmeden önce şifreni onayla.",
+    reauth_password_prompt:"Onaylamak için şifreni tekrar gir:",
     lang_toggle:"EN",
   },
 };
@@ -836,6 +903,29 @@ function applyI18n(){
 }
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Sprint 1: escapeHtml() stops markup injection but says nothing about a
+// URL's SCHEME — an externally-sourced href (a Ticketmaster event URL, an
+// OSM contact:instagram tag) could still be a javascript:/data:/vbscript:
+// value that executes on click. Every href built from data DayLoop didn't
+// author itself must pass this before being rendered. Control characters are
+// stripped before parsing since browsers ignore leading control characters
+// when resolving a URL's scheme — a classic "java\tscript:" bypass otherwise
+// survives a naive string-prefix check.
+function isSafeExternalUrl(url){
+  if(!url || typeof url !== 'string') return false;
+  var out = '';
+  for(var i=0;i<url.length;i++){
+    var code = url.charCodeAt(i);
+    if(code > 32 && code !== 127) out += url.charAt(i);
+  }
+  if(!out) return false;
+  try{
+    var parsed = new URL(out);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  }catch(e){
+    return false;
+  }
 }
 
 // ---------- config ----------
@@ -1196,24 +1286,50 @@ async function fetchNearbyEvents(lat, lon, opts){
   }
 }
 
+// Sprint 7.1: parses Ticketmaster's "HH:MM:SS" (or "HH:MM") local startTime
+// into minutes-of-day, or null if missing/unparseable — the one place that
+// conversion happens, so anchoring and window-gating always agree on the
+// same number.
+function parseEventStartMinute(startTime){
+  if(!startTime) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(startTime);
+  if(!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  if(!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h*60 + min;
+}
 // Sprint 7: turns a real, already-fetched Ticketmaster event into the same
 // POI-shaped candidate the rest of the Decision Layer already understands,
 // so it can compete honestly for a slot — never a mandatory stop, never
-// invented data. Two HARD gates, both enforced here and never relaxed:
+// invented data. HARD gates, all enforced here and never relaxed:
 //  - the event's own date must equal the plan's date exactly (an event must
 //    NEVER be suggested for the wrong date);
 //  - the event must have real venue coordinates (the Worker/Ticketmaster
 //    already provides these when known — see worker/src/index.js
 //    normalizeEvent) — no coordinates means no geographic-compatibility
-//    check is possible, so the honest choice is to exclude it, not guess.
-function normalizeEventAsCandidate(event, dateStr){
+//    check is possible, so the honest choice is to exclude it, not guess;
+//  - the event must have a real, verified startTime (Sprint 7.1) — a
+//    selected event is now anchored to this exact time (see
+//    anchorEventTimes), so a candidate with no verified time can never be
+//    scheduled honestly and must not become a candidate at all;
+//  - when a requested plan window is supplied, the event's real start (and
+//    its estimated end) must fall entirely inside [startMin, endMin] — an
+//    event outside the day the user actually asked for is never selected,
+//    not even adjusted to fit.
+function normalizeEventAsCandidate(event, dateStr, startMin, endMin){
   if(!event || event.startDate !== dateStr) return null;
   if(event.lat == null || event.lon == null) return null;
+  const startMinute = parseEventStartMinute(event.startTime);
+  if(startMinute == null) return null;
+  if(startMin != null && endMin != null){
+    const estimatedEnd = startMinute + (CATEGORY_DURATION_MIN.event || 120);
+    if(startMinute < startMin || estimatedEnd > endMin) return null;
+  }
   return {
     lat: event.lat, lon: event.lon, category: 'event', source: 'ticketmaster', id: event.id || null, osmType: null,
     tags: { name: event.name || '' },
     eventMeta: {
-      startDate: event.startDate, startTime: event.startTime || null, venueName: event.venueName || null,
+      startDate: event.startDate, startTime: event.startTime || null, startMinute, venueName: event.venueName || null,
       url: event.url || null, priceMin: event.priceMin ?? null, priceMax: event.priceMax ?? null, priceCurrency: event.priceCurrency || null,
     },
   };
@@ -1222,9 +1338,9 @@ function normalizeEventAsCandidate(event, dateStr){
 // exists" — a bounded distance gate, on top of (not instead of) normal
 // scoring, which already penalizes distance for every candidate type.
 const EVENT_MAX_DISTANCE_KM = 5;
-function buildEventCandidates(events, center, dateStr){
+function buildEventCandidates(events, center, dateStr, startMin, endMin){
   return (events||[])
-    .map(ev => normalizeEventAsCandidate(ev, dateStr))
+    .map(ev => normalizeEventAsCandidate(ev, dateStr, startMin, endMin))
     .filter(c => c && haversineKm(center, c) <= EVENT_MAX_DISTANCE_KM);
 }
 function formatEventDate(dateStr, timeStr){
@@ -1270,14 +1386,14 @@ function renderEventCard(ev){
       ${cityDistance ? `<div class="event-distance">📍 ${escapeHtml(cityDistance)}</div>` : ''}
       <div class="event-foot">
         <span class="event-source">${escapeHtml(source)}${priceLabel?' · '+escapeHtml(priceLabel):''}</span>
-        <a href="${escapeHtml(ev.url)}" target="_blank" class="event-ticket-btn">${escapeHtml(t('get_ticket'))}</a>
+        ${isSafeExternalUrl(ev.url) ? `<a href="${escapeHtml(ev.url)}" target="_blank" rel="noopener noreferrer" class="event-ticket-btn">${escapeHtml(t('get_ticket'))}</a>` : ''}
       </div>
     </div>
   </div>`;
 }
 function renderEventsFallback(container, center){
   container.innerHTML = `<div class="note">${escapeHtml(t('events_fallback_note'))}</div>
-    <a href="${buildEventsSearchURL(center)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+    <a href="${buildEventsSearchURL(center)}" target="_blank" rel="noopener noreferrer" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
 }
 let lastEventsCenter = null;
 async function renderEventsSection(center, keyword){
@@ -1983,6 +2099,12 @@ function resolveOpeningHoursConflicts(stops, dateStr, endMin, center){
   let prevPoi = center;
   for(let i=0; i<stops.length; i++){
     const s = stops[i];
+    // Sprint 7.1: an anchored event's start/end IS the real, verified time —
+    // an hours-driven shift accumulated from an earlier stop must never
+    // carry through and move it. It's treated as a fixed point: unaffected
+    // by upstream shift, and never a candidate for the closed/shift/swap
+    // logic below (it has no opening_hours tag to evaluate anyway).
+    if(s.eventAnchored){ prevPoi = s.poi; continue; }
     if(shift){ s.start += shift; s.end += shift; }
     const realMinute = s.start % 1440;
     const state = isLikelyOpenAt(s.poi.tags.opening_hours, dateStr, realMinute);
@@ -2063,8 +2185,15 @@ function buildItinerary(pois, center, opts){
   return { stops, dayTrace, structure };
 }
 
-function scheduleStops(stops, startMin, legDurationsMin, stretchFactor){
+// Shared by scheduleStops and anchorEventTimes so a stop's "how long do we
+// stay" estimate is computed exactly one way everywhere.
+function computeStopDuration(s, stretchFactor){
   const factor = stretchFactor || 1;
+  const baseDur = SLOT_DURATION_MIN[s.slotType] || CATEGORY_DURATION_MIN[s.poi?.category] || 60;
+  return Math.round(baseDur * factor);
+}
+
+function scheduleStops(stops, startMin, legDurationsMin, stretchFactor){
   let t = startMin;
   return stops.map((s,i)=>{
     let walk = 0;
@@ -2073,11 +2202,79 @@ function scheduleStops(stops, startMin, legDurationsMin, stretchFactor){
       t += walk;
     }
     const start = t;
-    const baseDur = SLOT_DURATION_MIN[s.slotType] || CATEGORY_DURATION_MIN[s.poi?.category] || 60;
-    const dur = Math.round(baseDur * factor);
+    const dur = computeStopDuration(s, stretchFactor);
     t += dur;
     return { ...s, start, end: t, walkFromPrev: walk };
   });
+}
+
+// Sprint 7.1: a selected event candidate carries a real, verified start time
+// (eventMeta.startMinute — see normalizeEventAsCandidate) that the generic
+// walking-time scheduler above knows nothing about. This pass runs right
+// after scheduleStops and re-anchors any event stop to that real time,
+// pushing later stops to start after it actually ends rather than silently
+// displaying an invented time.
+//
+// If the stops before an event wouldn't realistically get there before it
+// starts (previous stop's end + walk time is already past the real start),
+// forcing the anchor would either overlap the previous stop or run the
+// schedule backwards — both worse than not using this event. In that case a
+// different, already-ranked, non-event alternate from the same slot is used
+// instead (mirroring resolveOpeningHoursConflicts's own alternate-candidate
+// fallback below); if no alternate exists either, the stop is dropped
+// entirely — shrinking the day honestly rather than corrupting the timeline.
+//
+// Stops before the event are left exactly as scheduleStops timed them
+// (including real OSRM leg durations, when available) — only once an anchor
+// (or a swap/removal it triggers) is actually encountered does this switch
+// to the same straight-line walk-time estimate used elsewhere when precise
+// route data isn't available, since a moved/replaced stop no longer matches
+// any previously-fetched route leg.
+function anchorEventTimes(stops, startMin, center, stretchFactor){
+  let dirty = false;
+  let t = startMin;
+  let prevPoi = center;
+  for(let i=0;i<stops.length;i++){
+    const s = stops[i];
+    const anchorMin = (s.poi.category === 'event' && s.poi.eventMeta) ? s.poi.eventMeta.startMinute : null;
+
+    if(!dirty && anchorMin == null){
+      t = s.end; prevPoi = s.poi;
+      continue;
+    }
+    dirty = true;
+
+    s.distFromPrev = haversineKm(prevPoi, s.poi);
+    const walk = (i===0) ? 0 : walkMinutes(s.distFromPrev);
+    const naiveStart = t + walk;
+
+    if(anchorMin != null){
+      if(naiveStart <= anchorMin){
+        s.start = anchorMin;
+        s.end = anchorMin + computeStopDuration(s, stretchFactor);
+        s.walkFromPrev = walk;
+        s.eventAnchored = true;
+        t = s.end; prevPoi = s.poi;
+        continue;
+      }
+      const alt = (s.candidates||[]).find(c => c !== s.poi && c.category !== 'event');
+      if(alt){
+        s.poi = alt; s.altIndex = s.candidates.indexOf(alt);
+        i--; // reprocess this same index as the swapped-in, non-event POI
+        continue;
+      }
+      stops.splice(i,1);
+      i--; // reprocess whatever stop now sits at this index
+      continue;
+    }
+
+    const dur = computeStopDuration(s, stretchFactor);
+    s.start = naiveStart;
+    s.end = naiveStart + dur;
+    s.walkFromPrev = walk;
+    t = s.end; prevPoi = s.poi;
+  }
+  return stops;
 }
 
 // ---------- shared plan-building pipeline ----------
@@ -2134,7 +2331,7 @@ async function generatePlanCore(cityInput, dateStr, startMin, endMin){
     try{
       const events = await fetchNearbyEvents(center.lat, center.lon, { dateStr, startMin, endMin });
       if(Array.isArray(events) && events.length){
-        pois = [...pois, ...buildEventCandidates(events, center, dateStr)];
+        pois = [...pois, ...buildEventCandidates(events, center, dateStr, startMin, endMin)];
       }
     }catch(e){ console.warn('Event candidate fetch failed (non-fatal, planning continues without events):', e.message); }
   }
@@ -2154,6 +2351,11 @@ async function buildFullPlan(pois, center, weather, dateStr, startMin, endMin, v
   const route = await fetchWalkingRoute(points);
   const legDurationsForStops = route ? route.legs.slice(1).map(l=>l.durationMin) : null;
   const stops = scheduleStops(rawStops, startMin, legDurationsForStops, structure.stretchFactor);
+  // Sprint 7.1: anchor any selected event to its real, verified start time —
+  // must run before resolveOpeningHoursConflicts so an hours-driven shift
+  // elsewhere in the day can never be the thing that moves it (see that
+  // function's own eventAnchored guard).
+  anchorEventTimes(stops, startMin, center, structure.stretchFactor);
   // Sprint 7: re-check the FINAL, real schedule against opening hours — the
   // rough estimate used during candidate selection can differ from the
   // actual arrival time once real walking durations are known.
@@ -2400,6 +2602,52 @@ function formatOptionalTouch(touch){
   return t('optional_alternative', { category: t('cat_'+touch.category), name: touch.name, distance });
 }
 
+// ---------- Sprint 1 security hardening: honest cloud deletion ----------
+// Deleting a plan/wishlist item must remove BOTH the local copy and (when
+// signed in) its Firestore copy — never silently leave a "deleted" item still
+// synced to the cloud. `db`/`uid` are always passed in explicitly by the
+// caller (never read from a global here) and `uid` is always the caller's OWN
+// signed-in Firebase Auth uid — there is no code path that can pass a
+// different user's uid, so this can never touch another user's data. Kept
+// above the UI-wiring boundary (dependency-injected rather than reading the
+// global fbDb/fbUser) so it's covered by the existing test harness instead of
+// only being reachable from the live app.
+async function deleteFirestoreDoc(db, uid, collectionName, docId){
+  if(!db || !uid) return { attempted:false, ok:true }; // signed out — nothing in the cloud to delete
+  try{
+    await db.collection('users').doc(uid).collection(collectionName).doc(docId).delete();
+    return { attempted:true, ok:true };
+  }catch(e){
+    return { attempted:true, ok:false, error: e.message };
+  }
+}
+async function deleteAllFirestoreDocs(db, uid, collectionName, docIds){
+  if(!db || !uid) return { attempted:false, ok:true, failedIds: [] };
+  const results = await Promise.all(docIds.map(id => deleteFirestoreDoc(db, uid, collectionName, id)));
+  const failedIds = docIds.filter((id,i)=>!results[i].ok);
+  return { attempted:true, ok: failedIds.length===0, failedIds };
+}
+// Account deletion (Sprint 1): queries the ACTUAL Firestore collections
+// rather than trusting this device's localStorage cache — a Firebase Auth
+// user deletion never cascade-deletes their Firestore documents on its own,
+// and a multi-device user may have plans/wishlist items this device has
+// never seen. Best-effort across both collections; returns false if any
+// document anywhere failed to delete, so the caller never reports success
+// dishonestly.
+async function deleteAllUserData(db, uid){
+  if(!db || !uid) return { attempted:false, ok:true };
+  let ok = true;
+  for(const collectionName of ['plans','wishlist']){
+    try{
+      const snap = await db.collection('users').doc(uid).collection(collectionName).get();
+      const ids = snap.docs.map(d => d.id);
+      const result = await deleteAllFirestoreDocs(db, uid, collectionName, ids);
+      if(!result.ok) ok = false;
+    }catch(e){ ok = false; }
+  }
+  return { attempted:true, ok };
+}
+
 // ---------- UI wiring ----------
 function localDateStr(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2585,7 +2833,7 @@ function renderManualBuilder(){
       html += `<div id="manual-events-slot"><p class="mood-hint">${escapeHtml(t('events_loading'))}</p></div>`;
     } else {
       html += `<div class="note">${escapeHtml(t('manual_events_note'))}</div>`;
-      html += `<a href="${buildEventsSearchURL(manualContext.center)}" target="_blank" class="events-link">${escapeHtml(t('events_link'))}</a>`;
+      html += `<a href="${buildEventsSearchURL(manualContext.center)}" target="_blank" rel="noopener noreferrer" class="events-link">${escapeHtml(t('events_link'))}</a>`;
     }
   } else {
     const filtered = pois.filter(p=> manualFilter==='all' || p.category===manualFilter);
@@ -2790,17 +3038,25 @@ function renderWishList(){
     <div class="hi-top"><span>${escapeHtml(t('cat_'+item.category))}</span><span>${escapeHtml(item.city)}</span></div>
     <div class="hi-title">${escapeHtml(item.name)}</div>
     ${item.address ? `<div class="addr">${escapeHtml(item.address)}</div>` : ''}
-    <div class="hi-actions"><button onclick="deleteWish('${item.key}')">${escapeHtml(t('wishlist_remove'))}</button></div>
+    <div class="hi-actions"><button class="wish-delete-btn" data-key="${escapeHtml(item.key)}">${escapeHtml(t('wishlist_remove'))}</button></div>
   </div>`).join('');
 }
-function deleteWish(key){
+// Sprint 1: a delegated listener + data-key attribute instead of
+// onclick="deleteWish('${item.key}')" — that inline-handler string
+// interpolation was a structurally fragile pattern (safe today only because
+// wishPlaceKey() happens to only ever produce digits/dot/comma; it would
+// have become a real DOM XSS the moment that key format ever changed).
+$('wishlist-list').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.wish-delete-btn');
+  if(!btn) return;
+  deleteWish(btn.dataset.key);
+});
+async function deleteWish(key){
   localStorage.setItem(WISHLIST_KEY, JSON.stringify(loadWishList().filter(item=>item.key!==key)));
-  if(fbUser && fbDb){
-    fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).delete()
-      .catch(e=>console.warn('Cloud wishlist delete failed:', e.message));
-  }
   renderWishList();
   if(currentPlan) render();
+  const result = await deleteFirestoreDoc(fbDb, fbUser && fbUser.uid, 'wishlist', key);
+  if(result.attempted && !result.ok) showToast(t('cloud_delete_failed'));
 }
 function openWishList(){
   renderWishList();
@@ -2880,13 +3136,18 @@ function loadHistoryEntry(id){
   render();
   window.scrollTo({top:0, behavior:'smooth'});
 }
-function deleteHistoryEntry(id){
+async function deleteHistoryEntry(id){
   localStorage.setItem(HISTORY_KEY, JSON.stringify(loadHistoryList().filter(e=>e.id!==id)));
   renderHistoryPanel();
+  const result = await deleteFirestoreDoc(fbDb, fbUser && fbUser.uid, 'plans', String(id));
+  if(result.attempted && !result.ok) showToast(t('cloud_delete_failed'));
 }
-function clearHistoryAll(){
+async function clearHistoryAll(){
+  const ids = loadHistoryList().map(e=>String(e.id));
   localStorage.removeItem(HISTORY_KEY);
   renderHistoryPanel();
+  const result = await deleteAllFirestoreDocs(fbDb, fbUser && fbUser.uid, 'plans', ids);
+  if(result.attempted && !result.ok) showToast(t('cloud_delete_failed'));
 }
 function refreshPanelLock(){
   const anyOpen = $('history-panel').classList.contains('open') || $('auth-panel').classList.contains('open') || $('popular-panel').classList.contains('open');
@@ -2909,7 +3170,7 @@ async function renderPopularPanel(){
   const el = $('popular-body');
   if(!lastPOIContext || !lastPOIContext.pois.length){
     el.innerHTML = `<p class="mood-hint">${escapeHtml(t('popular_empty'))}</p>
-      <a href="${buildEventsSearchURL(null)}" target="_blank" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
+      <a href="${buildEventsSearchURL(null)}" target="_blank" rel="noopener noreferrer" class="events-link" style="display:block;text-align:center;">${escapeHtml(t('events_link'))}</a>`;
     return;
   }
   const { center, pois, dateStr, startMin, endMin } = lastPOIContext;
@@ -2922,7 +3183,7 @@ async function renderPopularPanel(){
         <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
         <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}</div>
       </div>
-      <a class="swapbtn" target="_blank" href="${mapLink(p.lat,p.lon)}">${escapeHtml(t('open_maps_short'))}</a>
+      <a class="swapbtn" target="_blank" rel="noopener noreferrer" href="${mapLink(p.lat,p.lon)}">${escapeHtml(t('open_maps_short'))}</a>
     </div>`;
   }).join('');
   html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
@@ -2972,12 +3233,17 @@ function onAuthStateChangedUI(user){
     $('auth-user-email').textContent = user.displayName || user.email || '';
     $('auth-user-sub').textContent = user.displayName ? (user.email || '') : t('signed_in_label');
     $('auth-avatar').textContent = (displayName || '?').charAt(0).toUpperCase();
+    // Only password-provider accounts ever need email verification — a
+    // Google sign-in already comes from a verified Google account.
+    const isPasswordProvider = (user.providerData||[]).some(p => p.providerId==='password');
+    $('auth-verify-notice').style.display = (isPasswordProvider && !user.emailVerified) ? 'block' : 'none';
     syncCloudHistory();
     syncCloudWishlist();
   } else {
     $('auth-toggle').textContent = t('signin_btn');
     $('auth-signed-out').style.display = 'block';
     $('auth-signed-in').style.display = 'none';
+    $('auth-verify-notice').style.display = 'none';
   }
 }
 let authMode = 'signin';
@@ -2995,7 +3261,11 @@ const AUTH_ERROR_KEYS = {
   'auth/missing-password': 'autherr_weak_password',
   'auth/wrong-password': 'autherr_wrong_password',
   'auth/invalid-credential': 'autherr_wrong_password',
-  'auth/user-not-found': 'autherr_user_not_found',
+  // Sprint 1: deliberately mapped to the SAME generic message as
+  // wrong-password, not the distinct (and account-existence-revealing)
+  // autherr_user_not_found string — a sign-in failure must not tell an
+  // attacker whether a given email has an account at all.
+  'auth/user-not-found': 'autherr_wrong_password',
   'auth/too-many-requests': 'autherr_too_many',
   'auth/network-request-failed': 'autherr_network',
   'auth/popup-closed-by-user': 'autherr_popup_closed',
@@ -3034,6 +3304,55 @@ async function syncCloudWishlist(){
   }catch(e){ console.warn('Cloud wishlist sync failed:', e.message); }
 }
 
+// Sprint 1: Firebase requires a RECENT sign-in before it will allow deleting
+// the account itself (auth/requires-recent-login) — this re-proves identity
+// the same way the account originally signed in (password re-entry for a
+// password account, a fresh popup for a Google account) rather than ever
+// asking for or storing a password anywhere in DayLoop.
+async function reauthenticateCurrentUser(){
+  if(!fbUser) return false;
+  const providerId = (fbUser.providerData[0] && fbUser.providerData[0].providerId) || null;
+  try{
+    if(providerId === 'google.com'){
+      await fbUser.reauthenticateWithPopup(new firebase.auth.GoogleAuthProvider());
+      return true;
+    }
+    const password = prompt(t('reauth_password_prompt'));
+    if(!password) return false;
+    const cred = firebase.auth.EmailAuthProvider.credential(fbUser.email, password);
+    await fbUser.reauthenticateWithCredential(cred);
+    return true;
+  }catch(e){
+    console.warn('Reauthentication failed:', e.message);
+    return false;
+  }
+}
+// Deletes the user's Firestore data (plans + wishlist, queried directly from
+// Firestore rather than assumed from this device's local cache) and then the
+// Firebase Auth account itself. Retries exactly once after a successful
+// reauthentication if Firebase demands it; never claims success if either
+// step actually failed.
+async function deleteAccountFlow(){
+  const uid = fbUser && fbUser.uid;
+  if(!uid) return;
+  try{
+    const dataResult = await deleteAllUserData(fbDb, uid);
+    if(dataResult.attempted && !dataResult.ok){ showToast(t('cloud_delete_failed')); return; }
+    await fbUser.delete();
+    closeAuthPanel();
+    showToast(t('delete_account_success_toast'));
+  }catch(e){
+    if(e.code === 'auth/requires-recent-login'){
+      showToast(t('delete_account_reauth_needed'));
+      const reauthed = await reauthenticateCurrentUser();
+      if(reauthed){ await deleteAccountFlow(); return; }
+      return;
+    }
+    console.warn('Account deletion failed:', e.message);
+    showToast(t('delete_account_error'));
+  }
+}
+
 if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeof firebase !== 'undefined'){
   try{
     firebase.initializeApp(firebaseConfig);
@@ -3060,8 +3379,12 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
           const cred = await fbAuth.createUserWithEmailAndPassword(email, pass);
           const name = $('auth-name').value.trim();
           if(name) await cred.user.updateProfile({ displayName: name });
+          // Best-effort — a delivery failure here must never block account
+          // creation itself; the resend button covers the retry case.
+          cred.user.sendEmailVerification().catch(e=>console.warn('Verification email failed to send:', e.message));
           onAuthStateChangedUI(fbAuth.currentUser);
         }
+        $('auth-password').value = ''; // never leave a typed password sitting in the DOM
         closeAuthPanel();
       }catch(e){ showAuthError(translateAuthError(e)); }
     });
@@ -3070,7 +3393,41 @@ if(firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && typeo
       try{ await fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); closeAuthPanel(); }
       catch(e){ showAuthError(translateAuthError(e)); }
     });
-    $('auth-signout-btn').addEventListener('click', async ()=>{ await fbAuth.signOut(); closeHistoryPanel(); });
+    $('auth-forgot-btn').addEventListener('click', async ()=>{
+      clearAuthError();
+      const email = $('auth-email').value.trim();
+      if(!email){ showAuthError(t('autherr_missing_fields')); return; }
+      try{
+        await fbAuth.sendPasswordResetEmail(email);
+        showToast(t('password_reset_sent'));
+      }catch(e){
+        // Sprint 1: auth/user-not-found must show the SAME success-shaped
+        // message as a real send — confirming "no account" here would be
+        // exactly the enumeration leak this sprint is closing. Only a
+        // genuinely different problem (bad email format, network) gets its
+        // own distinct message.
+        if(e.code === 'auth/user-not-found'){ showToast(t('password_reset_sent')); return; }
+        showAuthError(translateAuthError(e));
+      }
+    });
+    $('auth-resend-verify-btn').addEventListener('click', async ()=>{
+      if(!fbUser) return;
+      try{ await fbUser.sendEmailVerification(); showToast(t('verification_sent_toast')); }
+      catch(e){ showToast(translateAuthError(e)); }
+    });
+    $('auth-signout-btn').addEventListener('click', async ()=>{
+      await fbAuth.signOut();
+      closeHistoryPanel();
+      closeAuthPanel();
+      authMode = 'signin';
+      $('auth-email').value = ''; $('auth-password').value = ''; $('auth-name').value = '';
+      updateAuthModeUI();
+    });
+    $('auth-delete-account-btn').addEventListener('click', async ()=>{
+      if(!fbUser) return;
+      if(!confirm(t('delete_account_confirm'))) return;
+      await deleteAccountFlow();
+    });
   }catch(e){
     console.warn('Firebase init failed:', e.message);
     $('auth-toggle').style.display = 'none';
@@ -3241,8 +3598,8 @@ function render(){
       ${conf.note ? `<div class="confidence-note">${escapeHtml(conf.note)}</div>` : ''}
       ${reasonText ? `<div class="stop-reason">${escapeHtml(reasonText)}</div>` : ''}
       <div class="stop-actions">
-        <a class="maplink" target="_blank" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
-        ${igLink ? `<a class="maplink" target="_blank" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
+        <a class="maplink" target="_blank" rel="noopener noreferrer" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
+        ${isSafeExternalUrl(igLink) ? `<a class="maplink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
         ${canSwap ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
         <button class="swapbtn" onclick="saveWish(${i},this)" ${isWishSaved(s.poi)?'disabled':''}>${escapeHtml(t(isWishSaved(s.poi)?'wishlist_saved':'wishlist_save'))}</button>
       </div>

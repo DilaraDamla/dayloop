@@ -57,6 +57,7 @@ function loadDecisionEngine(){
     },
     navigator: { language: 'en-US' },
     localStorage: { getItem(){ return null; }, setItem(){}, removeItem(){} },
+    URL, // real WHATWG URL, same as the browser's — used by isSafeExternalUrl
     setTimeout, clearTimeout,
   };
   const context = vm.createContext(sandbox);
@@ -78,6 +79,8 @@ function loadDecisionEngine(){
       normalizeEventAsCandidate, buildEventCandidates, EVENT_MAX_DISTANCE_KM,
       isSameComplex, isSameComplexAsAnyUsed, resolveOpeningHoursConflicts,
       explainPlan, MAX_REASONABLE_SHIFT_MIN,
+      parseEventStartMinute, anchorEventTimes, computeStopDuration,
+      deleteFirestoreDoc, deleteAllFirestoreDocs, deleteAllUserData, isSafeExternalUrl,
     };`,
     context
   );
