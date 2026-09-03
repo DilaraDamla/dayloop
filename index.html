@@ -1411,8 +1411,23 @@ function extractPlaceCandidatesFromShare(text, title){
   // freeform text guess.
   return [...new Set([...urlHints, ...captionLines])].slice(0,5);
 }
+// Security fix: in normal use lat/lon are always real numbers from Nominatim/
+// Overpass, so this looked safe — but a shared plan's stops come from a
+// Firestore document ANY signed-in user can write directly via the Firebase
+// SDK (firestore.rules' isValidSharedPlan only checks that `stops` is a
+// list under a size cap, not each stop's own field types — Firestore
+// Security Rules cannot iterate a variable-length list to validate each
+// item's nested shape, a real, documented limitation of the rules
+// language). Without this coercion, a crafted stops[i].poi.lat/lon string
+// reaches this template literal, then an unescaped href attribute in
+// render() below, breaking out of the attribute/tag — a stored XSS
+// reachable by anyone who opens a malicious ?shared= link. Coercing to a
+// real finite number here (defaulting to 0) makes the OUTPUT of this
+// function incapable of carrying markup, regardless of what's fed in.
 function mapLink(lat,lon){
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+  const safeLat = (typeof lat === 'number' && isFinite(lat)) ? lat : 0;
+  const safeLon = (typeof lon === 'number' && isFinite(lon)) ? lon : 0;
+  return `https://www.google.com/maps/search/?api=1&query=${safeLat},${safeLon}`;
 }
 // A plain Google search is used instead of a guessed deep link into Biletix/Ticketmaster's
 // own site search — their URL query formats aren't something to assume without checking,
@@ -2531,6 +2546,66 @@ function insertMustIncludeStop(stops, poi, center){
   return [mustStop, ...stops];
 }
 
+// ---------- security hardening: sanitizing an untrusted shared-plan doc ----------
+// A shared plan's stops/weather/center come from a Firestore document that
+// ANY signed-in user can write directly through the Firebase SDK — never
+// assume they match the shape buildSharedPlanDoc's own writer always
+// produces. firestore.rules' isValidSharedPlan can only check that `stops`
+// is a list under a size cap, `weather`/`center` are maps — the rules
+// language has no construct to iterate a variable-length list and validate
+// each item's own nested field types, a real, documented limitation, not an
+// oversight. A real-world security review of this session's shared-plans
+// feature confirmed a crafted document reaches render() with a non-numeric
+// e.g. `stops[i].poi.lat` or `weather.avgTemp`, producing a stored XSS the
+// moment a victim opens a malicious `?shared=` link — mapLink() and the
+// specific render() interpolations were hardened directly for that, and
+// these three functions are the second, boundary-level layer: every
+// consumer of a LOADED shared plan (not just today's three fixed call
+// sites) gets already-well-typed data, current and future. Every numeric
+// field is individually type/finite-checked with a safe zero default rather
+// than trusted because a key merely exists.
+function sanitizeSharedPlanStop(rawStop){
+  const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : 0;
+  const rawPoi = (rawStop && typeof rawStop === 'object' && rawStop.poi && typeof rawStop.poi === 'object') ? rawStop.poi : {};
+  const poi = {
+    lat: num(rawPoi.lat), lon: num(rawPoi.lon),
+    category: typeof rawPoi.category === 'string' ? rawPoi.category : 'place',
+    tags: (rawPoi.tags && typeof rawPoi.tags === 'object') ? rawPoi.tags : {},
+  };
+  return {
+    slotType: (rawStop && typeof rawStop.slotType === 'string') ? rawStop.slotType : null,
+    poi,
+    distFromPrev: num(rawStop && rawStop.distFromPrev),
+    walkFromPrev: num(rawStop && rawStop.walkFromPrev),
+    start: num(rawStop && rawStop.start), end: num(rawStop && rawStop.end),
+    candidates: [poi], altIndex: 0,
+    tierUsed: (rawStop && typeof rawStop.tierUsed === 'string') ? rawStop.tierUsed : null,
+    relaxed: !!(rawStop && rawStop.relaxed),
+  };
+}
+function sanitizeSharedPlanStops(rawStops){
+  return Array.isArray(rawStops) ? rawStops.map(sanitizeSharedPlanStop) : [];
+}
+function sanitizeSharedPlanWeather(rawWeather){
+  const w = (rawWeather && typeof rawWeather === 'object') ? rawWeather : {};
+  return {
+    avgTemp: (typeof w.avgTemp === 'number' && isFinite(w.avgTemp)) ? w.avgTemp : null,
+    maxRain: (typeof w.maxRain === 'number' && isFinite(w.maxRain)) ? w.maxRain : 0,
+    code: (typeof w.code === 'number' && isFinite(w.code)) ? w.code : 0,
+    indoorBias: !!w.indoorBias,
+    codeKey: (typeof w.codeKey === 'string' && Object.prototype.hasOwnProperty.call(STRINGS.en, 'weather_'+w.codeKey)) ? w.codeKey : 'clear',
+  };
+}
+function sanitizeSharedPlanCenter(rawCenter){
+  const c = (rawCenter && typeof rawCenter === 'object') ? rawCenter : {};
+  return {
+    lat: (typeof c.lat === 'number' && isFinite(c.lat)) ? c.lat : 0,
+    lon: (typeof c.lon === 'number' && isFinite(c.lon)) ? c.lon : 0,
+    label: typeof c.label === 'string' ? c.label.slice(0,300) : null,
+    countryCode: typeof c.countryCode === 'string' ? c.countryCode.slice(0,10) : null,
+  };
+}
+
 // Shared by scheduleStops and anchorEventTimes so a stop's "how long do we
 // stay" estimate is computed exactly one way everywhere.
 function computeStopDuration(s, stretchFactor){
@@ -3049,6 +3124,35 @@ function formatParticipantsSummary(participants, ownerUid){
     .map(p => p.displayName || null);
 }
 
+// ---------- search-and-invite-a-friend (extends shared plans) ----------
+// A searchable profile is the minimum needed to find a friend by name — see
+// firestore.rules' userProfiles/{uid} comment for exactly why it holds
+// nothing beyond a display name. displayNameLower exists purely because
+// Firestore has no case-insensitive query operator; buildNamePrefixRange
+// below is the actual prefix-range trick that makes a ">=/<=" query behave
+// like a "starts with" search.
+function buildUserProfileDoc(uid, displayName){
+  const name = displayName || '';
+  return { uid, displayName: name, displayNameLower: name.toLowerCase(), updatedAt: Date.now() };
+}
+// Firestore range trick: a query for displayNameLower in [start, end) with
+// end = prefix + the highest valid Unicode codepoint matches every string
+// that starts with prefix, and nothing that doesn't — this is the standard,
+// well-documented way to do prefix search in Firestore (no native LIKE/
+// full-text operator exists).
+function buildNamePrefixRange(prefix){
+  const lower = (prefix || '').toLowerCase();
+  return { start: lower, end: lower + '' };
+}
+// A pointer, not a membership grant — see the matching firestore.rules
+// comment. Writing this never adds anyone as a participant; the invitee
+// still joins themselves, exactly like anyone who joins via a forwarded
+// link (see checkPendingInvites/loadSharedPlanFromURL in the UI-wiring
+// section below).
+function buildInviteEntry(inviteeUid, inviterUid, inviterName){
+  return { uid: inviteeUid, invitedBy: inviterUid, invitedByName: inviterName || '', invitedAt: Date.now() };
+}
+
 // ---------- UI wiring ----------
 function localDateStr(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -3504,14 +3608,26 @@ async function loadSharedPlanFromURL(shareId){
     const participantsSnap = await fbDb.collection('sharedPlans').doc(shareId).collection('participants').get();
     const participants = participantsSnap.docs.map(d=>d.data());
 
+    // Security: `data` is an untrusted Firestore document — any signed-in
+    // user can write one directly via the Firebase SDK, bypassing this
+    // app's own buildSharedPlanDoc entirely. See sanitizeSharedPlanStop's
+    // own comment for why firestore.rules alone can't close this. Never
+    // trust a field's type just because the key exists.
+    const numOr = (v, fallback) => (typeof v === 'number' && isFinite(v)) ? v : fallback;
     manualContext = null;
     currentPlan = {
-      dateStr: data.dateStr, startMin: data.startMin, endMin: data.endMin,
-      vibe: data.vibe, group: data.group, budget: data.budget, travelMode: data.travelMode || 'foot',
-      center: data.center, weather: data.weather, stops: data.stops,
-      totalWalkKm: data.totalWalkKm, totalWalkMin: data.totalWalkMin,
-      routeGeometry: data.routeGeometry, fromHistory: true,
-      sharedId: shareId, sharedOwnerId: data.ownerId, sharedOwnerName: data.ownerName,
+      dateStr: typeof data.dateStr === 'string' ? data.dateStr.slice(0,20) : '',
+      startMin: numOr(data.startMin, 0), endMin: numOr(data.endMin, 0),
+      vibe: typeof data.vibe === 'string' ? data.vibe : null,
+      group: typeof data.group === 'string' ? data.group : null,
+      budget: numOr(data.budget, 2), travelMode: data.travelMode === 'car' ? 'car' : 'foot',
+      center: sanitizeSharedPlanCenter(data.center), weather: sanitizeSharedPlanWeather(data.weather),
+      stops: sanitizeSharedPlanStops(data.stops),
+      totalWalkKm: numOr(data.totalWalkKm, 0), totalWalkMin: numOr(data.totalWalkMin, 0),
+      routeGeometry: null, // never trust a stored polyline's shape either — the map falls back to straight lines between the (now sanitized) stops, exactly like any other route-fetch failure already does
+      fromHistory: true,
+      sharedId: shareId, sharedOwnerId: typeof data.ownerId === 'string' ? data.ownerId : null,
+      sharedOwnerName: typeof data.ownerName === 'string' ? data.ownerName : '',
       sharedParticipants: participants,
     };
     setStatus('');
@@ -3772,7 +3888,7 @@ async function renderPopularPanel(){
         <div class="browse-name">${CATEGORY_EMOJI[p.category]||'📍'} ${escapeHtml(name)}</div>
         <div class="browse-meta">${escapeHtml(t('cat_'+p.category))}</div>
       </div>
-      <a class="swapbtn" target="_blank" rel="noopener noreferrer" href="${mapLink(p.lat,p.lon)}">${escapeHtml(t('open_maps_short'))}</a>
+      <a class="swapbtn" target="_blank" rel="noopener noreferrer" href="${escapeHtml(mapLink(p.lat,p.lon))}">${escapeHtml(t('open_maps_short'))}</a>
     </div>`;
   }).join('');
   html += `<div class="divider-row"><span>${escapeHtml(t('upcoming_events_label'))}</span></div>`;
@@ -4175,7 +4291,12 @@ function render(){
   html += `<div class="timeline">`;
   stops.forEach((s,i)=>{
     if(i>0){
-      html += `<div class="travel">${travelEmoji} <span>${s.walkFromPrev} ${escapeHtml(t(travelMode==='car' ? 'min_drive_to_next' : 'min_walk_to_next'))}</span></div>`;
+      // Security fix: see mapLink's comment above for why shared-plan stop
+      // fields can't be trusted to be the type they claim (Firestore Rules
+      // can't validate each item's shape inside a variable-length list) — a
+      // non-numeric walkFromPrev must never reach an unescaped interpolation.
+      const walkDisplay = (typeof s.walkFromPrev === 'number' && isFinite(s.walkFromPrev)) ? Math.round(s.walkFromPrev) : 0;
+      html += `<div class="travel">${travelEmoji} <span>${walkDisplay} ${escapeHtml(t(travelMode==='car' ? 'min_drive_to_next' : 'min_walk_to_next'))}</span></div>`;
     }
     const name = placeName(s.poi.tags) || `${t('cat_'+s.poi.category)} ${t('nearby_word')}`;
     const addr = placeAddress(s.poi.tags);
@@ -4201,7 +4322,7 @@ function render(){
       ${conf.note ? `<div class="confidence-note">${escapeHtml(conf.note)}</div>` : ''}
       ${reasonText ? `<div class="stop-reason">${escapeHtml(reasonText)}</div>` : ''}
       <div class="stop-actions">
-        <a class="maplink" target="_blank" rel="noopener noreferrer" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
+        <a class="maplink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(mapLink(s.poi.lat,s.poi.lon))}">${escapeHtml(t('open_maps'))}</a>
         ${isSafeExternalUrl(igLink) ? `<a class="maplink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
         ${(canSwap && !currentPlan.sharedId) ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
         <button class="swapbtn" onclick="saveWish(${i},this)" ${isWishSaved(s.poi)?'disabled':''}>${escapeHtml(t(isWishSaved(s.poi)?'wishlist_saved':'wishlist_save'))}</button>
@@ -4265,10 +4386,15 @@ function render(){
     ${buildPlanningSummaryItems(currentPlan).map(item=>`<div class="ps-item"><span class="ps-check">✓</span><span>${escapeHtml(item)}</span></div>`).join('')}
   </div>`;
 
+  // Security fix: a shared plan's weather object comes from the same
+  // untrusted Firestore document as stops (see mapLink's comment above) —
+  // `!= null` alone doesn't mean "is a real number," so a crafted string
+  // must never pass through this interpolation unescaped.
+  const avgTempDisplay = (typeof weather.avgTemp === 'number' && isFinite(weather.avgTemp)) ? weather.avgTemp+'°C' : '—';
   html += `<div class="card weathercard">
     <div class="emoji">${emoji}</div>
     <div class="wtext">
-      <strong>${weather.avgTemp!=null?weather.avgTemp+'°C':'—'} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
+      <strong>${escapeHtml(avgTempDisplay)} · ${escapeHtml(t('weather_'+weather.codeKey))}</strong>
       <div>${weather.indoorBias ? escapeHtml(t('weather_indoor_note')) : escapeHtml(t('weather_outdoor_note'))}</div>
     </div>
   </div>`;
