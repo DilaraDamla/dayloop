@@ -1,17 +1,45 @@
 {
+  "id": "/dayloop/",
   "name": "DayLoop",
   "short_name": "DayLoop",
   "description": "Describe your perfect day. We'll build it.",
+  "lang": "en",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0f1115",
   "theme_color": "#0f1115",
+  "categories": ["travel", "lifestyle", "productivity"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/mobile-planner.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Describe your city, time, and mood — DayLoop plans the day"
+    },
+    {
+      "src": "screenshots/mobile-itinerary.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A real, walkable itinerary with times, map, and reasons for every stop"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Wish List",
+      "short_name": "Wish List",
+      "description": "Open your saved places",
+      "url": "./index.html?open=wishlist",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ],
   "share_target": {
     "action": "./index.html",
