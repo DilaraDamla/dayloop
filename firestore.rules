@@ -28,6 +28,21 @@ rules_version = '2';
 //   - delete: fbDb.collection('sharedPlans').doc(shareId).collection('participants').doc(uid).delete()    [self only — this is "leave"]
 //   - read:  fbDb.collection('sharedPlans').doc(shareId).collection('participants').get()
 //
+// Search-and-invite-a-friend (extends the shared-plans feature above): a
+// lightweight, opt-in searchable profile at userProfiles/{uid} (display name
+// only — never email or any other account data), populated/kept in sync on
+// sign-in. Inviting someone found via search never adds them as a
+// participant directly — it only writes a pointer at
+// sharedPlans/{shareId}/invites/{theirUid} that they see and act on
+// themselves; actually joining still means writing their own
+// participants/{uid} doc exactly like anyone who joins via a forwarded link.
+//   - create/update: fbDb.collection('userProfiles').doc(fbUser.uid).set(profile)          [self only]
+//   - read:  fbDb.collection('userProfiles').where('displayNameLower','>=',prefix)...get()  [any signed-in user — this is the search]
+//   - delete: fbDb.collection('userProfiles').doc(fbUser.uid).delete()                       [self only, part of account deletion]
+//   - create: fbDb.collection('sharedPlans').doc(shareId).collection('invites').doc(theirUid).set(entry)  [any existing participant, for someone else]
+//   - read:  fbDb.collectionGroup('invites').where('uid','==',fbUser.uid).get()               [the invitee, checked on sign-in]
+//   - delete: .../invites/{uid}.delete()                                                      [the invitee (accept/dismiss) or the original inviter (revoke)]
+//
 // NOT deployed by this change — see docs/security/manual-owner-actions.md for
 // the manual deploy step required before these rules take effect.
 service cloud.firestore {
@@ -109,6 +124,26 @@ service cloud.firestore {
         && data.joinedAt is number;
     }
 
+    // displayNameLower exists purely so search can do a Firestore
+    // prefix-range query (>= prefix, <= prefix+'') — Firestore has no
+    // case-insensitive query operator, so the lowercase copy is what's
+    // actually queried against; displayName is what's ever shown to a user.
+    function isValidUserProfile(data) {
+      return data.keys().hasOnly(['uid','displayName','displayNameLower','updatedAt'])
+        && data.uid is string
+        && data.displayName is string && data.displayName.size() <= 100
+        && data.displayNameLower is string && data.displayNameLower.size() <= 100
+        && data.updatedAt is number;
+    }
+
+    function isValidInvite(data) {
+      return data.keys().hasOnly(['uid','invitedBy','invitedByName','invitedAt'])
+        && data.uid is string
+        && data.invitedBy is string
+        && data.invitedByName is string && data.invitedByName.size() <= 100
+        && data.invitedAt is number;
+    }
+
     // A user's own saved plans. Only the signed-in user whose auth UID
     // matches {userId} may read or write documents under their own path;
     // no other signed-in user, and no unauthenticated caller, can reach it —
@@ -163,6 +198,40 @@ service cloud.firestore {
         allow delete: if request.auth != null && request.auth.uid == participantId;
         allow update: if false;
       }
+
+      // A pointer, not a membership grant — see the comment on
+      // isValidInvite's data model above. Only an EXISTING participant can
+      // create one (so this can't be used to spam an arbitrary account that
+      // has nothing to do with this plan), and only for someone ELSE (not
+      // themselves — that would just be a confusing no-op, never needed
+      // since joining already has its own direct path).
+      match /invites/{uid} {
+        allow read: if request.auth != null
+          && (request.auth.uid == uid
+              || exists(/databases/$(database)/documents/sharedPlans/$(shareId)/participants/$(request.auth.uid)));
+        allow create: if request.auth != null
+          && request.auth.uid != uid
+          && exists(/databases/$(database)/documents/sharedPlans/$(shareId)/participants/$(request.auth.uid))
+          && request.resource.data.uid == uid
+          && request.resource.data.invitedBy == request.auth.uid
+          && isValidInvite(request.resource.data);
+        // The invitee dismisses/accepts their own invite; the original
+        // inviter can revoke one they created by mistake. No one else.
+        allow delete: if request.auth != null
+          && (request.auth.uid == uid || resource.data.invitedBy == request.auth.uid);
+        allow update: if false;
+      }
+    }
+
+    // Lightweight, opt-in profile used only to make a display name
+    // searchable for the "invite a friend by name" flow — contains nothing
+    // beyond a display name, never email or any other account data.
+    // Readable by any signed-in user (that IS the search feature); every
+    // user controls only their own document.
+    match /userProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if isOwner(uid) && request.resource.data.uid == uid && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(uid);
     }
 
     // Deny everything else by default. Firestore already denies any request

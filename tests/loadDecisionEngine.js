@@ -99,6 +99,8 @@ function loadDecisionEngine(){
       buildFullPlan,
       extractPlaceCandidatesFromShare, extractInstagramUrlHints, humanizeSlug,
       insertMustIncludeStop,
+      sanitizeSharedPlanStop, sanitizeSharedPlanStops, sanitizeSharedPlanWeather, sanitizeSharedPlanCenter,
+      mapLink,
     };`,
     context
   );
