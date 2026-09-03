@@ -1755,11 +1755,37 @@ async function queryOverpass(query, onProgress){
   throw new Error('Places lookup failed — map data sources are unreachable right now (tried every route twice). If you opened this file directly (double-click), running it through a local server instead usually fixes this for good — ask for those steps again if you want them.');
 }
 
-async function fetchPOIs(lat,lon,onProgress){
-  const radii = { cafe:1200, restaurant:1200, bar:1500, nightclub:2500, cinema:3000,
-                   museum:3000, gallery:2000, park:2000, viewpoint:3500, artwork:2000,
-                   bakery:1000, ice_cream:1200, shopping:3000,
-                   arts_centre:2500, theatre:3000, escape_room:2500, bookstore:1500, ferry_terminal:4000 };
+// Normal, walkable-city search radii per category — unchanged default
+// behavior for anywhere with real density.
+const POI_RADII = { cafe:1200, restaurant:1200, bar:1500, nightclub:2500, cinema:3000,
+                 museum:3000, gallery:2000, park:2000, viewpoint:3500, artwork:2000,
+                 bakery:1000, ice_cream:1200, shopping:3000,
+                 arts_centre:2500, theatre:3000, escape_room:2500, bookstore:1500, ferry_terminal:4000 };
+
+// Real field finding (Ardanuç, Artvin — a small district, population ~5,000):
+// within POI_RADII, Overpass returns only a handful of POIs total, zero of
+// them cafes, close to the town's own OSM-geocoded center. That's an honest
+// reflection of a small town having genuinely fewer, more spread-out
+// businesses — not missing data — so this is roughly double POI_RADII,
+// capped, and used ONLY as a fallback (see fetchPOIs) when the normal radii
+// come back sparse. A place this far out is still shown honestly, not hidden
+// — resolveOpeningHoursConflicts/explainTradeOff already surface an
+// unusually-far stop with a trade-off note rather than pretending it's
+// close.
+const POI_RADII_WIDE = { cafe:2400, restaurant:2400, bar:3000, nightclub:5000, cinema:6000,
+                 museum:6000, gallery:4000, park:4000, viewpoint:6000, artwork:4000,
+                 bakery:2000, ice_cream:2400, shopping:6000,
+                 arts_centre:5000, theatre:6000, escape_room:5000, bookstore:3000, ferry_terminal:4000 };
+
+// Below this, a location is treated as sparse enough to justify the extra
+// widened-radius round-trip in fetchPOIs — the same thresholds
+// planDayStructure already uses to decide a "low" density day, applied here
+// pre-vibe (fetchPOIs runs before any profile exists) across ALL categories
+// rather than only the ones a specific vibe cares about.
+const SPARSE_TOTAL_THRESHOLD = 12;
+const SPARSE_DISTINCT_THRESHOLD = 4;
+
+function buildPOIQueryBody(lat, lon, radii){
   let body = '[out:json][timeout:25];(';
   for(const [cat, tagPairs] of Object.entries(CATEGORY_TAGS)){
     for(const [k,v] of tagPairs){
@@ -1767,8 +1793,10 @@ async function fetchPOIs(lat,lon,onProgress){
     }
   }
   body += ');out center tags;';
-  const data = await queryOverpass(body, onProgress);
-  return data.elements.map(el=>{
+  return body;
+}
+function normalizePOIElements(elements){
+  return elements.map(el=>{
     const tags = el.tags||{};
     let category = null;
     for(const [cat, tagPairs] of Object.entries(CATEGORY_TAGS)){
@@ -1784,6 +1812,36 @@ async function fetchPOIs(lat,lon,onProgress){
       id: el.id ?? null, osmType: el.type ?? null, source: 'osm',
     };
   }).filter(p=>p.category && p.lat && p.lon);
+}
+function isSparsePOIResult(pois){
+  const distinctCategories = new Set(pois.map(p=>p.category)).size;
+  return pois.length < SPARSE_TOTAL_THRESHOLD || distinctCategories < SPARSE_DISTINCT_THRESHOLD;
+}
+
+async function fetchPOIs(lat,lon,onProgress){
+  const data = await queryOverpass(buildPOIQueryBody(lat, lon, POI_RADII), onProgress);
+  const pois = normalizePOIElements(data.elements);
+  if(!isSparsePOIResult(pois)) return pois;
+
+  // Sparse result: one extra widened-radius query, merged in rather than
+  // replacing the narrow-radius result (so nothing found close-in is ever
+  // lost), deduped by real OSM id. Deliberately non-fatal — a dense city
+  // never reaches here, and a small town that finds nothing extra either way
+  // just keeps its (possibly still-sparse) narrow-radius result, exactly as
+  // before this change.
+  try{
+    onProgress?.('Widening search radius…');
+    const wideData = await queryOverpass(buildPOIQueryBody(lat, lon, POI_RADII_WIDE), onProgress);
+    const widePois = normalizePOIElements(wideData.elements);
+    const seen = new Set(pois.map(p=>`${p.osmType}:${p.id}`));
+    for(const p of widePois){
+      const key = `${p.osmType}:${p.id}`;
+      if(!seen.has(key)){ pois.push(p); seen.add(key); }
+    }
+  }catch(e){
+    console.warn('Widened POI search failed (non-fatal) — continuing with the narrow-radius result:', e.message);
+  }
+  return pois;
 }
 
 // Real walking directions via a public OSRM instance that hosts the "foot" profile
