@@ -61,6 +61,23 @@ includes the place's name, category, city, address (if known), and
 coordinates. Deletion works the same as plan history — local and cloud
 copies are both removed.
 
+### Shared plans (only if you use "Invite friends", requires sign-in)
+This is the one place DayLoop stores data somewhere other than your own
+private, per-account location. Tapping "Invite friends" on a generated plan
+copies that exact itinerary (everything listed under "Plan history" above,
+minus internal ranking data) into a new, separate Firestore document, along
+with your display name and account ID as its owner. Anyone who is signed
+into DayLoop **and has the link** — DayLoop does not publish, list, or make
+shared plans discoverable any other way — can view that plan and add
+themselves to its "who's coming" participant list (their display name and
+account ID; that's the whole entry). Any participant, owner included, can
+forward the same link to bring in further people; each of them can later
+remove themselves via "Leave this plan." **[OWNER/LEGAL TO CONFIRM]** how
+long a shared plan and its participant list are retained, and whether the
+owner gets a way to delete a shared plan outright (today, only the owner's
+Firebase Auth account is technically permitted to update/delete it in
+Firestore Security Rules — no delete control exists yet in the app's UI).
+
 ### Location (only if you use "use my location")
 If you tap the "use my location" control, your browser asks you for
 permission (a standard browser prompt DayLoop does not control or bypass)

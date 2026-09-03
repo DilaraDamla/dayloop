@@ -606,6 +606,18 @@ const STRINGS = {
     min_walk_to_next:"min walk to next stop", min_unit:"min",
     swap_btn:"🔄 Suggest another",
     share_btn:"🔗 Share this plan", share_copied:"Link copied to clipboard!",
+    invite_friends_btn:"👥 Invite friends", invite_link_copied:"Invite link copied — send it to whoever's coming!",
+    invite_signin_required:"Sign in to create a shared plan your friends can join.",
+    invite_create_failed:"Couldn't create the shared plan. Please try again.",
+    shared_plan_view_note:"Shared by {name} — anyone signed in with this link can join.",
+    shared_plan_not_found:"This shared plan link doesn't work anymore — it may have been deleted.",
+    shared_plan_load_failed:"Couldn't load this shared plan. Check your connection and try again.",
+    who_is_coming_title:"Who's coming",
+    participant_anonymous:"A DayLoop user",
+    join_plan_btn:"Join this plan", joined_plan_label:"You're in ✓", joined_plan_toast:"You joined the plan!",
+    leave_plan_btn:"Leave this plan", left_plan_toast:"You left the plan.",
+    join_signin_required:"Sign in to join this plan.",
+    join_failed:"Couldn't join — please try again.", leave_failed:"Couldn't leave — please try again.",
     history_btn:"🕘 Saved plans", history_title:"Saved plans", history_empty:"No saved plans yet.",
     history_clear:"Clear all", history_clear_confirm:"Delete all saved plans?",
     history_delete:"Delete", history_load:"View",
@@ -778,6 +790,18 @@ const STRINGS = {
     min_walk_to_next:"dk yürüyüş — sonraki durak", min_unit:"dk",
     swap_btn:"🔄 Başka öner",
     share_btn:"🔗 Planı paylaş", share_copied:"Bağlantı panoya kopyalandı!",
+    invite_friends_btn:"👥 Arkadaşlarını davet et", invite_link_copied:"Davet bağlantısı kopyalandı — gelecek olanlara gönder!",
+    invite_signin_required:"Arkadaşlarının katılabileceği ortak bir plan oluşturmak için giriş yap.",
+    invite_create_failed:"Ortak plan oluşturulamadı. Lütfen tekrar dene.",
+    shared_plan_view_note:"{name} tarafından paylaşıldı — bu bağlantıyla giriş yapan herkes katılabilir.",
+    shared_plan_not_found:"Bu ortak plan bağlantısı artık çalışmıyor — silinmiş olabilir.",
+    shared_plan_load_failed:"Bu ortak plan yüklenemedi. Bağlantını kontrol edip tekrar dene.",
+    who_is_coming_title:"Kimler geliyor",
+    participant_anonymous:"Bir DayLoop kullanıcısı",
+    join_plan_btn:"Bu plana katıl", joined_plan_label:"Katıldın ✓", joined_plan_toast:"Plana katıldın!",
+    leave_plan_btn:"Plandan ayrıl", left_plan_toast:"Plandan ayrıldın.",
+    join_signin_required:"Bu plana katılmak için giriş yap.",
+    join_failed:"Katılamadın — lütfen tekrar dene.", leave_failed:"Ayrılamadın — lütfen tekrar dene.",
     history_btn:"🕘 Kayıtlı planlar", history_title:"Kayıtlı planlar", history_empty:"Henüz kayıtlı plan yok.",
     history_clear:"Tümünü temizle", history_clear_confirm:"Tüm kayıtlı planlar silinsin mi?",
     history_delete:"Sil", history_load:"Görüntüle",
@@ -2757,6 +2781,52 @@ async function deleteAllUserData(db, uid){
   return { attempted:true, ok };
 }
 
+// ---------- shared/collaborative plans (invite-friends feature) ----------
+// A shared plan publishes the EXACT plan a signed-in user just generated
+// (not just the inputs — see buildShareURL further below, which only
+// encodes city/date/vibe/etc. and re-runs planning from scratch, so two
+// people opening that link can get different results) to a new Firestore
+// document that any signed-in user with the link can view, and can join by
+// adding themselves as a participant. Pure payload-shaping only — kept
+// above the UI-wiring boundary, no direct Firestore calls here, so it's
+// covered by the existing test harness the same way deleteFirestoreDoc
+// above is. See firestore.rules (sharedPlans/{shareId}) for the matching
+// server-side shape validation — every field here is deliberately the same
+// set isValidSharedPlan expects.
+
+// Identical stripping to saveToHistory's own `entry` (candidates/altIndex
+// are internal scoring/ranking state, never meant to leave this device) —
+// this IS that same plan, unmodified, just also carrying who owns it.
+function buildSharedPlanDoc(plan, ownerUid, ownerName){
+  return {
+    ownerId: ownerUid,
+    ownerName: ownerName || '',
+    createdAt: Date.now(),
+    dateStr: plan.dateStr, startMin: plan.startMin, endMin: plan.endMin,
+    vibe: plan.vibe, group: plan.group, budget: plan.budget,
+    center: plan.center, weather: plan.weather,
+    stops: plan.stops.map(({candidates, altIndex, ...rest})=>rest),
+    totalWalkKm: plan.totalWalkKm, totalWalkMin: plan.totalWalkMin,
+    routeGeometry: plan.routeGeometry,
+  };
+}
+
+function buildParticipantEntry(uid, displayName){
+  return { uid, displayName: displayName || '', joinedAt: Date.now() };
+}
+
+// Owner always listed first (regardless of when their own participant doc
+// was written), everyone else oldest-joined first. Returns display names
+// only — `null` for a participant with no name on file, so the caller
+// decides the "anonymous" fallback text (i18n lives in the UI-wiring layer,
+// not here).
+function formatParticipantsSummary(participants, ownerUid){
+  return participants
+    .slice()
+    .sort((a,b) => (a.uid===ownerUid ? -1 : b.uid===ownerUid ? 1 : a.joinedAt-b.joinedAt))
+    .map(p => p.displayName || null);
+}
+
 // ---------- UI wiring ----------
 function localDateStr(d){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -3085,6 +3155,141 @@ async function onShareClick(){
     showToast(t('share_copied'));
   }catch(e){
     prompt('Copy this link:', url);
+  }
+}
+
+// ---------- shared/collaborative plans: UI orchestration ----------
+// Pure payload-shaping (buildSharedPlanDoc/buildParticipantEntry/
+// formatParticipantsSummary) lives above the UI-wiring boundary; everything
+// here is the live Firestore read/write glue, same split as the rest of
+// this section (e.g. saveToHistory vs deleteFirestoreDoc above it).
+function buildSharedPlanURL(shareId){
+  const p = new URLSearchParams();
+  p.set('shared', shareId);
+  return `${location.origin}${location.pathname}?${p.toString()}`;
+}
+function currentDisplayName(){
+  if(!fbUser) return '';
+  return fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : '');
+}
+async function copyOrPromptLink(url, copiedMsgKey){
+  try{
+    await navigator.clipboard.writeText(url);
+    showToast(t(copiedMsgKey));
+  }catch(e){
+    prompt('Copy this link:', url);
+  }
+}
+
+// Publishes the plan currently on screen as a shared plan, joins the owner
+// as its first participant, and copies the invite link. Requires sign-in
+// (this feature's chosen participation model — see AskUserQuestion history/
+// PR description) since a shared plan needs a real, stable owner identity;
+// prompts sign-in rather than failing silently if signed out.
+async function onInviteClick(){
+  if(currentPlan && currentPlan.sharedId){
+    await copyOrPromptLink(buildSharedPlanURL(currentPlan.sharedId), 'invite_link_copied');
+  } else {
+    await createSharedPlan();
+  }
+}
+async function createSharedPlan(){
+  if(!currentPlan || !currentPlan.stops || !currentPlan.stops.length) return;
+  if(!fbUser || !fbDb){
+    showToast(t('invite_signin_required'));
+    openAuthPanel();
+    return;
+  }
+  try{
+    const docRef = fbDb.collection('sharedPlans').doc();
+    const ownerName = currentDisplayName();
+    const doc = buildSharedPlanDoc(currentPlan, fbUser.uid, ownerName);
+    await docRef.set(doc);
+    const participant = buildParticipantEntry(fbUser.uid, ownerName);
+    await docRef.collection('participants').doc(fbUser.uid).set(participant);
+
+    currentPlan.sharedId = docRef.id;
+    currentPlan.sharedOwnerId = fbUser.uid;
+    currentPlan.sharedOwnerName = ownerName;
+    currentPlan.sharedParticipants = [participant];
+    render();
+
+    await copyOrPromptLink(buildSharedPlanURL(docRef.id), 'invite_link_copied');
+  }catch(e){
+    console.warn('Creating shared plan failed:', e.message);
+    showToast(t('invite_create_failed'));
+  }
+}
+
+// Loads a shared plan (and its current participant list) from a `?shared=`
+// link into `currentPlan` and renders it — the same render() the owner's
+// own freshly-generated plan uses, so a joined friend sees an identical
+// itinerary, not a re-generated (and possibly different) one.
+async function loadSharedPlanFromURL(shareId){
+  if(!fbDb){
+    showError(t('shared_plan_load_failed'));
+    return;
+  }
+  setStatus(t('status_location'));
+  try{
+    const docSnap = await fbDb.collection('sharedPlans').doc(shareId).get();
+    if(!docSnap.exists){
+      setStatus('');
+      showError(t('shared_plan_not_found'));
+      return;
+    }
+    const data = docSnap.data();
+    const participantsSnap = await fbDb.collection('sharedPlans').doc(shareId).collection('participants').get();
+    const participants = participantsSnap.docs.map(d=>d.data());
+
+    manualContext = null;
+    currentPlan = {
+      dateStr: data.dateStr, startMin: data.startMin, endMin: data.endMin,
+      vibe: data.vibe, group: data.group, budget: data.budget,
+      center: data.center, weather: data.weather, stops: data.stops,
+      totalWalkKm: data.totalWalkKm, totalWalkMin: data.totalWalkMin,
+      routeGeometry: data.routeGeometry, fromHistory: true,
+      sharedId: shareId, sharedOwnerId: data.ownerId, sharedOwnerName: data.ownerName,
+      sharedParticipants: participants,
+    };
+    setStatus('');
+    render();
+    document.getElementById('result').scrollIntoView({ behavior:'smooth', block:'start' });
+  }catch(e){
+    console.warn('Loading shared plan failed:', e.message);
+    setStatus('');
+    showError(t('shared_plan_load_failed'));
+  }
+}
+
+async function joinSharedPlanClick(){
+  if(!currentPlan || !currentPlan.sharedId) return;
+  if(!fbUser || !fbDb){
+    showToast(t('join_signin_required'));
+    openAuthPanel();
+    return;
+  }
+  try{
+    const participant = buildParticipantEntry(fbUser.uid, currentDisplayName());
+    await fbDb.collection('sharedPlans').doc(currentPlan.sharedId).collection('participants').doc(fbUser.uid).set(participant);
+    currentPlan.sharedParticipants = [...(currentPlan.sharedParticipants||[]).filter(p=>p.uid!==fbUser.uid), participant];
+    render();
+    showToast(t('joined_plan_toast'));
+  }catch(e){
+    console.warn('Joining shared plan failed:', e.message);
+    showToast(t('join_failed'));
+  }
+}
+async function leaveSharedPlanClick(){
+  if(!currentPlan || !currentPlan.sharedId || !fbUser || !fbDb) return;
+  try{
+    await fbDb.collection('sharedPlans').doc(currentPlan.sharedId).collection('participants').doc(fbUser.uid).delete();
+    currentPlan.sharedParticipants = (currentPlan.sharedParticipants||[]).filter(p=>p.uid!==fbUser.uid);
+    render();
+    showToast(t('left_plan_toast'));
+  }catch(e){
+    console.warn('Leaving shared plan failed:', e.message);
+    showToast(t('leave_failed'));
   }
 }
 
@@ -3699,6 +3904,10 @@ function render(){
     const addr = placeAddress(s.poi.tags);
     const slotKey = s.slotType==='activity2' ? 'activity' : s.slotType;
     const timeLabel = slotKey ? `${SLOT_EMOJI[slotKey]} ${escapeHtml(t('slot_'+slotKey))}` : `${CATEGORY_EMOJI[s.poi.category]||'📍'} ${escapeHtml(t('cat_'+s.poi.category))}`;
+    // Shared/collaborative plans: swapping never writes back to the shared
+    // Firestore doc (no such sync exists), so it would silently diverge from
+    // what every other participant sees — hidden rather than offering an
+    // edit that looks real but isn't.
     const canSwap = s.candidates && s.candidates.length > 1;
     const igLink = placeInstagram(s.poi.tags);
     const conf = stopConfidence(s.poi, currentPlan.dateStr, s.start);
@@ -3715,7 +3924,7 @@ function render(){
       <div class="stop-actions">
         <a class="maplink" target="_blank" rel="noopener noreferrer" href="${mapLink(s.poi.lat,s.poi.lon)}">${escapeHtml(t('open_maps'))}</a>
         ${isSafeExternalUrl(igLink) ? `<a class="maplink" target="_blank" rel="noopener noreferrer" href="${escapeHtml(igLink)}">${escapeHtml(t('open_instagram'))}</a>` : ''}
-        ${canSwap ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
+        ${(canSwap && !currentPlan.sharedId) ? `<button class="swapbtn" onclick="swapStop(${i})">${escapeHtml(t('swap_btn'))}</button>` : ''}
         <button class="swapbtn" onclick="saveWish(${i},this)" ${isWishSaved(s.poi)?'disabled':''}>${escapeHtml(t(isWishSaved(s.poi)?'wishlist_saved':'wishlist_save'))}</button>
       </div>
     </div>`;
@@ -3724,6 +3933,24 @@ function render(){
 
   // Map follows the timeline immediately — it supports the story, it doesn't interrupt it.
   html += `<div id="mapview"></div>`;
+
+  // Shared/collaborative plans: "who's coming" + join/leave, shown whenever
+  // the plan currently on screen is a shared one — true both for the owner
+  // right after creating it and for a friend who opened the invite link.
+  // Placed right after the timeline+map since it's central to what makes
+  // this a *shared* plan, not an incidental supporting detail.
+  if(currentPlan.sharedId){
+    const names = formatParticipantsSummary(currentPlan.sharedParticipants||[], currentPlan.sharedOwnerId);
+    const isJoined = !!(fbUser && (currentPlan.sharedParticipants||[]).some(p=>p.uid===fbUser.uid));
+    html += `<div class="card planning-summary shared-plan-participants">
+      <div class="ps-title">${escapeHtml(t('who_is_coming_title'))}</div>
+      <p class="mood-hint" style="margin-top:0;">${escapeHtml(t('shared_plan_view_note', { name: currentPlan.sharedOwnerName || t('participant_anonymous') }))}</p>
+      ${names.map(n=>`<div class="ps-item"><span class="ps-check">◦</span><span>${escapeHtml(n || t('participant_anonymous'))}</span></div>`).join('')}
+      ${isJoined
+        ? `<button type="button" class="swapbtn" id="leave-plan-btn" style="margin-top:10px;">${escapeHtml(t('leave_plan_btn'))}</button>`
+        : `<button type="button" class="swapbtn" id="join-plan-btn" style="margin-top:10px;">${escapeHtml(t('join_plan_btn'))}</button>`}
+    </div>`;
+  }
 
   // Sprint 6: "Optional touches" — reuses each stop's own already-computed
   // runner-up candidates plus any nearby ferry terminal, never re-scores or
@@ -3805,10 +4032,23 @@ function render(){
   // "get an alternative day" action reads after nearby events, not before them.
   $('plan-actions').innerHTML = `<div class="share-row">
     <button class="again" id="share-btn">${escapeHtml(t('share_btn'))}</button>
+    <button class="again" id="invite-btn">${escapeHtml(t('invite_friends_btn'))}</button>
     <button class="again" id="again-btn">${escapeHtml(t('again_btn'))}</button>
   </div>`;
   $('share-btn').addEventListener('click', onShareClick);
+  // Not yet shared: creates + copies a new invite link. Already shared
+  // (owner right after creating it, or a friend viewing the invite link):
+  // re-copies the SAME link — the mechanism by which any participant can
+  // forward it on to bring in their own friends, not just the original
+  // owner.
+  $('invite-btn').addEventListener('click', onInviteClick);
   $('again-btn').addEventListener('click', planAgain);
+  if(currentPlan.sharedId){
+    const joinBtn = document.getElementById('join-plan-btn');
+    if(joinBtn) joinBtn.addEventListener('click', joinSharedPlanClick);
+    const leaveBtn = document.getElementById('leave-plan-btn');
+    if(leaveBtn) leaveBtn.addEventListener('click', leaveSharedPlanClick);
+  }
 
   try{ renderMap(center, stops, routeGeometry, touches); }catch(e){ console.warn('Map render failed:', e.message); }
 }
@@ -3866,6 +4106,13 @@ if('serviceWorker' in navigator){
       showToast(t('share_import_manual'));
       document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
     }
+    return;
+  }
+  // A durable, revisitable link (unlike the share_text/share_title payload
+  // above, which is one-time OS-share ephemera) — left in the URL after
+  // loading so reloading or re-sharing the same link keeps working.
+  if(params.has('shared')){
+    loadSharedPlanFromURL(params.get('shared'));
     return;
   }
   if(!params.has('city')) return;
