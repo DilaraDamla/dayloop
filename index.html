@@ -655,6 +655,7 @@ const STRINGS = {
     wishlist_btn:"♡ Wish List", wishlist_title:"Wish List", wishlist_empty:"No saved places yet.",
     wishlist_save:"♡ Save", wishlist_saved:"Saved", wishlist_remove:"Remove", wishlist_added:"Saved to your Wish List.", wishlist_duplicate:"This place is already in your Wish List.",
     share_import_added:"Added from your share — building a day around it.", share_import_manual:"Couldn't read a place from what you shared — type it in below.", share_import_failed:"Couldn't find that place. Try typing it in below.",
+    share_import_bare_link:"A plain Instagram link doesn't include the place's name — paste the caption too (or the location tag), or just type the name below.",
     wishlist_import_label:"Saw a place on Instagram? Paste the caption or link", wishlist_import_placeholder:"Paste the Instagram caption or post link…", wishlist_import_btn:"📸 Import from Instagram", wishlist_import_empty:"Paste something first.",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
@@ -853,6 +854,7 @@ const STRINGS = {
     wishlist_btn:"♡ İstek Listesi", wishlist_title:"İstek Listesi", wishlist_empty:"Henüz kaydedilmiş mekân yok.",
     wishlist_save:"♡ Kaydet", wishlist_saved:"Kaydedildi", wishlist_remove:"Sil", wishlist_added:"İstek Listene kaydedildi.", wishlist_duplicate:"Bu mekân zaten İstek Listende.",
     share_import_added:"Paylaşımından eklendi — etrafında bir gün planlanıyor.", share_import_manual:"Paylaştığın içerikten bir mekân çıkaramadık — aşağıya yazabilirsin.", share_import_failed:"O mekân bulunamadı. Aşağıya yazmayı dene.",
+    share_import_bare_link:"Düz bir Instagram linki mekânın adını içermiyor — açıklamayı da (ya da konum etiketini) yapıştır, ya da adı doğrudan aşağıya yaz.",
     wishlist_import_label:"Instagram'da bir yer mi gördün? Açıklamayı veya linki yapıştır", wishlist_import_placeholder:"Instagram açıklamasını veya gönderi linkini yapıştır…", wishlist_import_btn:"📸 Instagram'dan içe aktar", wishlist_import_empty:"Önce bir şey yapıştır.",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
@@ -1348,6 +1350,64 @@ function placeInstagram(tags){
   if(!handle) return null;
   if(/^https?:\/\//i.test(handle)) return handle;
   return `https://instagram.com/${handle.replace(/^@/,'')}`;
+}
+
+// ---------- import a place shared from outside DayLoop (e.g. Instagram) ----------
+// manifest.json's share_target registers DayLoop (once installed) in the OS
+// share sheet. Android/Chrome then opens index.html with share_title/share_text/
+// share_url query params carrying whatever the source app sent — for an
+// Instagram post that's typically the caption plus a trailing post link, not
+// structured place data, so this is a best-effort guess, not a parser.
+// Returns candidate place-name guesses, shortest first — a caption's actual
+// place name is usually a short line (or the whole line, if that's all that
+// was shared), while surrounding sentences are longer and geocode poorly.
+// A bare Instagram post/reel link (instagram.com/p/{shortcode}/) carries no
+// human-readable place info at all — the shortcode is opaque, and DayLoop
+// has no backend to fetch the actual post content (Instagram blocks
+// unauthenticated scraping, and its oEmbed API has required an approved app
+// token since 2020). Two link shapes DO carry a real, literal name-like
+// signal straight in the URL, though, so they're worth extracting instead of
+// discarding along with every other URL below:
+//  - a location-tag link (.../explore/locations/{id}/{slug}/) — {slug} is a
+//    hyphenated, lowercased version of the actual place name;
+//  - a bare profile link (instagram.com/{username}/, nothing after it) —
+//    the handle is often close to a business's real name, a weaker signal
+//    than a location slug but still real, not invented, and — like every
+//    other candidate here — only ever accepted after it independently
+//    geocodes successfully (see importSharedPlace, in the UI-wiring section
+//    below — the one part of this feature that isn't pure/testable here,
+//    since it drives the DOM and calls geocodeCity).
+const IG_RESERVED_PATH_SEGMENTS = new Set(['p','reel','reels','tv','explore','stories','accounts','direct','locations']);
+function humanizeSlug(slug){
+  return slug.replace(/[-_.]+/g, ' ').trim();
+}
+function extractInstagramUrlHints(raw){
+  const hints = [];
+  const urlRegex = /https?:\/\/(?:www\.)?instagram\.com\/([^\s?#]+)/gi;
+  let m;
+  while((m = urlRegex.exec(raw))){
+    const parts = m[1].split('/').filter(Boolean);
+    if(!parts.length) continue;
+    if(parts[0] === 'explore' && parts[1] === 'locations' && parts[3]){
+      hints.push(humanizeSlug(parts[3]));
+    } else if(parts.length === 1 && !IG_RESERVED_PATH_SEGMENTS.has(parts[0].toLowerCase())){
+      hints.push(humanizeSlug(parts[0]));
+    }
+  }
+  return hints.filter(h => h.length > 1);
+}
+function extractPlaceCandidatesFromShare(text, title){
+  const raw = (text || title || '').toString();
+  const urlHints = extractInstagramUrlHints(raw);
+  const noUrls = raw.replace(/https?:\/\/\S+/g, ' ');
+  const noEmoji = noUrls.replace(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ' ');
+  const noHashtags = noEmoji.replace(/#\S+/g, ' ');
+  const captionLines = noHashtags.split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>1)
+    .sort((a,b)=>a.split(' ').length - b.split(' ').length);
+  // URL-derived hints first — a location slug or profile handle is a more
+  // literal signal than a caption sentence, so it's worth trying before any
+  // freeform text guess.
+  return [...new Set([...urlHints, ...captionLines])].slice(0,5);
 }
 function mapLink(lat,lon){
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
@@ -3551,7 +3611,20 @@ $('wishlist-import-btn').addEventListener('click', ()=>{
   const text = $('wishlist-import-input').value.trim();
   if(!text){ showToast(t('wishlist_import_empty')); return; }
   const candidates = extractPlaceCandidatesFromShare(text, '');
-  if(!candidates.length){ showToast(t('share_import_manual')); return; }
+  if(!candidates.length){
+    // A bare instagram.com link with nothing else pasted — a plain post/reel
+    // link genuinely carries no readable place name (see
+    // extractInstagramUrlHints' own comment on why), so this gets its own,
+    // more specific explanation instead of the generic "couldn't read
+    // anything" message. Either way, actually get the user to the city
+    // field "below" rather than just naming it in a toast.
+    const isBareInstagramLink = /^https?:\/\/(?:www\.)?instagram\.com\/\S+$/i.test(text);
+    showToast(t(isBareInstagramLink ? 'share_import_bare_link' : 'share_import_manual'));
+    closeWishList();
+    document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
+    $('city').focus();
+    return;
+  }
   $('wishlist-import-input').value = '';
   closeWishList();
   importSharedPlace(candidates);
@@ -4218,22 +4291,6 @@ function render(){
 }
 
 // ---------- import a place shared from outside DayLoop (e.g. Instagram) ----------
-// manifest.json's share_target registers DayLoop (once installed) in the OS
-// share sheet. Android/Chrome then opens index.html with share_title/share_text/
-// share_url query params carrying whatever the source app sent — for an
-// Instagram post that's typically the caption plus a trailing post link, not
-// structured place data, so this is a best-effort guess, not a parser.
-// Returns candidate place-name guesses, shortest first — a caption's actual
-// place name is usually a short line (or the whole line, if that's all that
-// was shared), while surrounding sentences are longer and geocode poorly.
-function extractPlaceCandidatesFromShare(text, title){
-  const raw = (text || title || '').toString();
-  const noUrls = raw.replace(/https?:\/\/\S+/g, ' ');
-  const noEmoji = noUrls.replace(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ' ');
-  const noHashtags = noEmoji.replace(/#\S+/g, ' ');
-  const lines = noHashtags.split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(s=>s.length>1);
-  return [...new Set(lines)].sort((a,b)=>a.split(' ').length - b.split(' ').length).slice(0,5);
-}
 async function importSharedPlace(candidates){
   document.getElementById('planner').scrollIntoView({ behavior:'smooth', block:'start' });
   for(const guess of candidates){
@@ -4251,6 +4308,7 @@ async function importSharedPlace(candidates){
     }catch(e){ /* try the next candidate line */ }
   }
   showError(t('share_import_failed'));
+  $('city').focus();
 }
 
 // ---------- boot ----------

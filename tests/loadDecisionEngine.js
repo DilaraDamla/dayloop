@@ -97,6 +97,7 @@ function loadDecisionEngine(){
       WALK_SPEED_KMH, DRIVE_SPEED_KMH, TRAVEL_SPEED_KMH, DISTANCE_PENALTY_PER_KM,
       POI_RADII_CAR, POI_RADII_CAR_WIDE, fetchRoute, OSRM_FOOT_URL, OSRM_CAR_URL,
       buildFullPlan,
+      extractPlaceCandidatesFromShare, extractInstagramUrlHints, humanizeSlug,
     };`,
     context
   );
