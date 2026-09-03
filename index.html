@@ -30,6 +30,18 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#0f1115">
+<!--
+  iOS ignores most of the Web App Manifest for "Add to Home Screen" — these
+  meta tags are what actually control the installed icon, status bar, and
+  standalone (no browser chrome) mode on iOS specifically. Android/Chrome
+  read the manifest.json above directly and don't need these, but they're
+  harmless there too. Without apple-touch-icon, iOS falls back to an
+  auto-generated screenshot of the page as the home-screen icon.
+-->
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DayLoop">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt" crossorigin="anonymous">
 <style>
@@ -4384,6 +4396,13 @@ if('serviceWorker' in navigator){
   // loading so reloading or re-sharing the same link keeps working.
   if(params.has('shared')){
     loadSharedPlanFromURL(params.get('shared'));
+    return;
+  }
+  // manifest.json's "Wish List" install shortcut (long-press the installed
+  // app icon on Android) links here.
+  if(params.get('open') === 'wishlist'){
+    history.replaceState(null, '', location.pathname);
+    openWishList();
     return;
   }
   if(!params.has('city')) return;
