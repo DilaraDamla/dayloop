@@ -92,6 +92,7 @@ function loadDecisionEngine(){
       fetchPOIs, buildPOIQueryBody, normalizePOIElements, isSparsePOIResult,
       POI_RADII, POI_RADII_WIDE, SPARSE_TOTAL_THRESHOLD, SPARSE_DISTINCT_THRESHOLD,
       buildSharedPlanDoc, buildParticipantEntry, formatParticipantsSummary,
+      accessibilityBadge, filterAccessiblePOIs,
     };`,
     context
   );
