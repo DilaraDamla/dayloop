@@ -10,6 +10,20 @@
 worker/.dev.vars
 worker/.dev.vars.*
 !worker/.dev.vars.example
+worker/.wrangler/
+
+# Sprint 1 security hardening: common credential/key file patterns, in case
+# any future backend/service-account work introduces one of these — kept
+# broad and applied repo-wide (not just under worker/) on purpose.
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+*-service-account.json
+gcloud-service-key.json
+firebase-adminsdk*.json
 
 # OS / editor cruft
 .DS_Store

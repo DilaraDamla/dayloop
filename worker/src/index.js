@@ -4,6 +4,24 @@
 // TICKETMASTER_API_KEY secret) and exposes a narrow, validated GET /events
 // endpoint that the public index.html client can call safely. The key is
 // never returned to the client, logged, or embedded in any response.
+//
+// Sprint 1 security audit note — CORS is NOT authentication or rate
+// limiting. isAllowedOrigin()/corsHeaders() below only control whether a
+// BROWSER attaches this response to a cross-origin JS fetch; they do nothing
+// to stop a direct HTTP request (curl, a script, another server) from
+// calling this endpoint and spending Ticketmaster quota, since CORS is
+// enforced by browsers, not by this server. What actually protects this
+// endpoint today is: strict input validation (below), a fixed, non-client-
+// controlled result size and radius ladder, and Cloudflare's edge cache
+// deduping identical requests for CACHE_TTL_SECONDS. There is no real
+// per-caller rate limit yet — see docs/security/manual-owner-actions.md
+// (section G) for the actual production recommendation (Cloudflare Rate
+// Limiting Rules on a custom domain, or a Durable-Object/KV token bucket).
+// A fake in-memory counter was deliberately NOT added here: a Worker
+// isolate's memory isn't shared across Cloudflare's edge locations or even
+// guaranteed to persist between two requests from the same caller, so an
+// in-memory counter would silently under-count and give a false sense of
+// protection — worse than no rate limit at all.
 
 const ALLOWED_ORIGINS = new Set([
   'https://dilaradamla.github.io',
@@ -139,6 +157,14 @@ function normalizeEvent(ev, searchLat, searchLon) {
   };
 }
 
+// Sprint 1: bounds how long a single upstream call is allowed to hang. Without
+// this, a slow/stalled Ticketmaster response could hold this Worker's
+// execution open until the platform's own hard ceiling — an explicit,
+// shorter timeout fails fast and predictably instead, which matters more
+// here than elsewhere since a stuck request also holds up the radius-tier
+// retry loop below it.
+const UPSTREAM_TIMEOUT_MS = 8000;
+
 // One Discovery API call at a single radius tier. Returns either the raw event
 // list (possibly empty — the caller decides whether to widen the radius) or a
 // hard failure that should stop the tier loop and be reported as-is, since a
@@ -159,7 +185,13 @@ async function searchTicketmasterOnce(lat, lon, radiusKm, params, env) {
 
   let tmResponse;
   try {
-    tmResponse = await fetch(upstream.toString());
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    try {
+      tmResponse = await fetch(upstream.toString(), { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (e) {
     return { ok: false, status: 502, error: 'upstream_unreachable', message: 'Could not reach the events provider.' };
   }
@@ -194,7 +226,18 @@ async function searchTicketmasterOnce(lat, lon, radiusKm, params, env) {
   return { ok: true, rawEvents: (data._embedded && data._embedded.events) || [] };
 }
 
+// Sprint 1: a cheap, early sanity cap on the whole request — every legitimate
+// call this Worker ever needs to serve (lat/lon/dates/locale/an 80-char
+// keyword) fits comfortably under this. Rejecting oversized requests before
+// any parsing/upstream work starts is a trivial, genuinely reliable
+// protection, unlike an in-memory rate limiter (see the note at the top of
+// this file).
+const MAX_URL_LENGTH = 1000;
+
 async function handleEvents(request, env, ctx, origin) {
+  if (request.url.length > MAX_URL_LENGTH) {
+    return jsonResponse({ error: 'request_too_large', message: 'Request URL is too long.' }, 414, origin);
+  }
   const params = new URL(request.url).searchParams;
 
   const lat = parseLat(params.get('lat'));
@@ -322,3 +365,10 @@ export default {
     return jsonResponse({ error: 'not_found' }, 404, origin);
   },
 };
+
+// Sprint 1: named exports of the pure validation/parsing helpers, purely for
+// the regression test suite (tests/worker-events-validation.test.js) to
+// import directly — Wrangler only ever uses the default export above as the
+// actual Worker entrypoint, so this changes nothing about the deployed
+// behavior.
+export { parseLat, parseLon, parseDateTime, parseLocale, sanitizeKeyword, isAllowedOrigin, haversineKm };

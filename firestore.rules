@@ -7,31 +7,80 @@ rules_version = '2';
 // wish-listed places live at users/{userId}/wishlist/{placeKey}.
 //   - write: fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(entry.id)).set(entry)
 //   - read:  fbDb.collection('users').doc(fbUser.uid).collection('plans').orderBy('id','desc').limit(20).get()
+//   - delete: fbDb.collection('users').doc(fbUser.uid).collection('plans').doc(String(id)).delete()
 //   - write: fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).set(entry)
 //   - read:  fbDb.collection('users').doc(fbUser.uid).collection('wishlist').orderBy('addedAt','desc').limit(100).get()
+//   - delete: fbDb.collection('users').doc(fbUser.uid).collection('wishlist').doc(key).delete()
 // In all cases {userId} is always the caller's own Firebase Auth UID
 // (fbUser.uid comes from onAuthStateChanged, never from user-editable input).
 //
-// NOT deployed by this change — see README.md "Security" section for the
-// manual deploy step required before these rules take effect.
+// NOT deployed by this change — see docs/security/manual-owner-actions.md for
+// the manual deploy step required before these rules take effect.
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Sprint 1 hardening: beyond per-user isolation (the load-bearing check),
+    // reject writes whose shape doesn't look like what index.html actually
+    // sends — an unexpected top-level field, a wrong type, or an absurdly
+    // large list. Deliberately loose on VALUES (vibe/group/budget are not
+    // pinned to a fixed enum here — new vibes/tiers have been added before
+    // and will be again; a rules-level enum would silently break legitimate
+    // writes the next time that happens). This is a defense against a signed-
+    // in user's own client writing malformed/oversized data into their own
+    // document, not a privacy boundary — isOwner() above is what prevents any
+    // cross-user access, and stays true regardless of these checks.
+    function isValidPlan(data) {
+      return data.keys().hasOnly(['id','dateStr','startMin','endMin','vibe','group','budget','center','weather','stops','totalWalkKm','totalWalkMin','routeGeometry'])
+        && data.id is number
+        && data.dateStr is string && data.dateStr.size() <= 20
+        && data.startMin is number && data.startMin >= 0 && data.startMin <= 1440
+        && data.endMin is number && data.endMin >= 0 && data.endMin <= 1440
+        && data.vibe is string && data.vibe.size() <= 50
+        && data.group is string && data.group.size() <= 50
+        && data.budget is number
+        && data.center is map
+        && data.weather is map
+        && data.stops is list && data.stops.size() <= 20
+        && data.totalWalkKm is number
+        && data.totalWalkMin is number
+        && (data.routeGeometry == null || (data.routeGeometry is list && data.routeGeometry.size() <= 5000));
+    }
+
+    function isValidWishlistItem(data) {
+      return data.keys().hasOnly(['key','addedAt','name','category','city','address'])
+        && data.key is string && data.key.size() <= 100
+        && data.addedAt is number
+        && data.name is string && data.name.size() <= 300
+        && data.category is string && data.category.size() <= 50
+        && data.city is string && data.city.size() <= 300
+        && (data.address == null || (data.address is string && data.address.size() <= 300));
+    }
+
     // A user's own saved plans. Only the signed-in user whose auth UID
     // matches {userId} may read or write documents under their own path;
-    // no other signed-in user, and no unauthenticated caller, can reach it.
+    // no other signed-in user, and no unauthenticated caller, can reach it —
+    // true for read/delete AND for create/update, independent of the shape
+    // validation below.
     match /users/{userId}/plans/{planId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidPlan(request.resource.data);
     }
 
     // A user's own wish-listed places. Same per-user isolation as plans above.
     match /users/{userId}/wishlist/{placeKey} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidWishlistItem(request.resource.data);
     }
 
     // Deny everything else by default. Firestore already denies any request
     // that doesn't match an explicit `allow` rule, but this makes that
-    // default explicit for every other path, current or future.
+    // default explicit for every other path — including any future
+    // collection (e.g. a Taste Profile) added under users/{userId}/ before an
+    // explicit, equally-scoped rule is written for it.
     match /{document=**} {
       allow read, write: if false;
     }
