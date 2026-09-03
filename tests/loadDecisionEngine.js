@@ -89,12 +89,15 @@ function loadDecisionEngine(){
       parseEventStartMinute, anchorEventTimes, computeStopDuration,
       deleteFirestoreDoc, deleteAllFirestoreDocs, deleteAllUserData, isSafeExternalUrl,
       geocodeCity, fetchWithTimeout, sleep,
+      fetchPOIs, buildPOIQueryBody, normalizePOIElements, isSparsePOIResult,
+      POI_RADII, POI_RADII_WIDE, SPARSE_TOTAL_THRESHOLD, SPARSE_DISTINCT_THRESHOLD,
     };`,
     context
   );
   // Exposed so a test can install a fetch mock (`eng.__context.fetch = ...`)
   // before calling one of the few exported functions that actually touch the
-  // network (geocodeCity, fetchWithTimeout) — every other export here is pure.
+  // network (geocodeCity, fetchWithTimeout, fetchPOIs) — every other export
+  // here is pure.
   context.__exports.__context = context;
   return context.__exports;
 }
