@@ -58,7 +58,14 @@ function loadDecisionEngine(){
     navigator: { language: 'en-US' },
     localStorage: { getItem(){ return null; }, setItem(){}, removeItem(){} },
     URL, // real WHATWG URL, same as the browser's — used by isSafeExternalUrl
+    AbortController, // used by fetchWithTimeout's abort-on-timeout logic
     setTimeout, clearTimeout,
+    // Left undefined by default (calling it throws a real ReferenceError, same
+    // as a browser would with no fetch available) — tests that exercise
+    // geocodeCity/fetchWithTimeout set `eng.__context.fetch = ...` to a mock
+    // before calling them, since those are the only exported functions that
+    // touch the network.
+    fetch: undefined,
   };
   const context = vm.createContext(sandbox);
   vm.runInContext(source, context, { filename: 'index.html (extracted app script)' });
@@ -81,9 +88,14 @@ function loadDecisionEngine(){
       explainPlan, MAX_REASONABLE_SHIFT_MIN,
       parseEventStartMinute, anchorEventTimes, computeStopDuration,
       deleteFirestoreDoc, deleteAllFirestoreDocs, deleteAllUserData, isSafeExternalUrl,
+      geocodeCity, fetchWithTimeout, sleep,
     };`,
     context
   );
+  // Exposed so a test can install a fetch mock (`eng.__context.fetch = ...`)
+  // before calling one of the few exported functions that actually touch the
+  // network (geocodeCity, fetchWithTimeout) — every other export here is pure.
+  context.__exports.__context = context;
   return context.__exports;
 }
 
