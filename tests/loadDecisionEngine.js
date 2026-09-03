@@ -98,6 +98,7 @@ function loadDecisionEngine(){
       POI_RADII_CAR, POI_RADII_CAR_WIDE, fetchRoute, OSRM_FOOT_URL, OSRM_CAR_URL,
       buildFullPlan,
       extractPlaceCandidatesFromShare, extractInstagramUrlHints, humanizeSlug,
+      insertMustIncludeStop,
     };`,
     context
   );
