@@ -145,26 +145,47 @@
   .dl-pin{background:var(--accent);color:var(--accent-contrast);font-weight:700;font-size:0.7rem;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel);box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:pointer;}
   .dl-pin.focused{box-shadow:0 0 0 3px rgba(var(--accent-rgb),0.45),0 1px 4px rgba(0,0,0,.3);}
   .dl-pin-secondary{background:var(--panel2);color:var(--muted);font-weight:700;font-size:0.65rem;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.25);}
-  .stop.focused{outline:2px solid var(--accent2);outline-offset:2px;}
-  .stop{
-    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
-    padding:18px; margin-bottom:12px; position:relative;
+  /* ---------- itinerary: a continuous timeline, not a stack of cards ----------
+     Revives the "premium itinerary" redesign (originally feat/premium-itinerary,
+     commit 7ecadcc) — a numbered rail replaces bordered stop cards. Re-applied
+     fresh against the current markup/features (map-focus click, stop-reason,
+     wishlist save button) rather than merging the stale branch, since the
+     underlying file has changed too much since for a direct merge to apply
+     cleanly. Visual only — every existing stop feature/behavior is unchanged. */
+  .timeline{position:relative;margin:0 0 8px;padding-left:46px;}
+  .timeline::before{
+    content:'';position:absolute;left:13px;top:6px;bottom:6px;width:2px;
+    background:linear-gradient(var(--accent),var(--accent2));opacity:0.22;border-radius:2px;
   }
-  .stop .time{color:var(--accent2); font-weight:700; font-size:0.85rem; letter-spacing:0.03em;}
-  .stop h3{margin:6px 0 4px; font-size:1.15rem; font-family:var(--font-display);}
-  .stop .cat{color:var(--muted); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em;}
-  .stop .addr{color:var(--muted); font-size:0.88rem; margin-top:6px;}
-  .confidence-badge{display:inline-block;font-size:0.76rem;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:help;margin-top:6px;}
-  .confidence-note{color:var(--muted);font-size:0.8rem;margin-top:4px;}
-  .stop-reason{color:var(--muted);font-size:0.8rem;margin-top:4px;}
-  .stop-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
-  .stop a.maplink{display:inline-block;font-size:0.85rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);padding:6px 12px;border-radius:8px;}
-  .stop a.maplink:hover{border-color:var(--accent2);}
+  .stop{position:relative;padding:26px 0;margin:0;}
+  .stop.focused{outline:2px solid var(--accent2);outline-offset:6px;border-radius:8px;}
+  .stop-marker{
+    position:absolute;left:-46px;top:26px;width:28px;height:28px;border-radius:50%;
+    background:var(--accent);color:var(--accent-contrast);font-family:var(--font-display);
+    font-weight:700;font-size:0.85rem;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 4px var(--bg);
+  }
+  .stop .time{color:var(--accent2);font-weight:600;font-size:0.76rem;letter-spacing:0.05em;text-transform:uppercase;}
+  .stop h3{margin:8px 0 4px;font-size:1.4rem;font-weight:600;font-family:var(--font-display);letter-spacing:-0.2px;}
+  .stop .cat{color:var(--muted);font-size:0.78rem;letter-spacing:0.02em;}
+  .stop .addr{color:var(--muted);font-size:0.86rem;margin-top:8px;line-height:1.5;}
+  .confidence-badge{display:inline-block;font-size:0.74rem;font-weight:600;color:var(--muted);cursor:help;margin-top:12px;}
+  .confidence-note{color:var(--muted);font-size:0.8rem;margin-top:4px;line-height:1.5;}
+  .stop-reason{color:var(--muted);font-size:0.8rem;margin-top:4px;line-height:1.5;}
+  .stop-actions{display:flex;gap:20px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+  .stop a.maplink{display:inline-block;font-size:0.85rem;color:var(--accent2);text-decoration:none;padding:4px 0;}
+  .stop a.maplink:hover{text-decoration:underline;text-underline-offset:3px;}
   .swapbtn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:8px;font-size:0.8rem;cursor:pointer;}
   .swapbtn:hover{border-color:var(--accent2);color:var(--text);}
   .swapbtn:disabled{opacity:0.4;cursor:not-allowed;}
-  .travel{text-align:center;color:var(--muted);font-size:0.8rem;margin:2px 0 12px;}
-  .travel span{background:var(--panel2);padding:4px 10px;border-radius:999px;border:1px solid var(--border);}
+  /* Chromeless override for the swap/wishlist buttons specifically inside the
+     timeline's stop-actions row — .swapbtn's bordered base style above is
+     shared with (and stays unchanged for) the manual-mode browse list's "Add"
+     button and the optional-touches "Open maps" link, neither part of this
+     redesign. */
+  .stop-actions .swapbtn{border:none;padding:4px 0;font-size:0.85rem;border-radius:0;}
+  .stop-actions .swapbtn:hover{color:var(--text);text-decoration:underline;text-underline-offset:3px;}
+  .travel{color:var(--muted);font-size:0.78rem;margin:0;padding:2px 0;}
   .note{background:rgba(var(--accent2-rgb),0.10);border:1px solid rgba(var(--accent2-rgb),0.35);color:var(--accent2);padding:10px 14px;border-radius:10px;font-size:0.85rem;margin-bottom:16px;}
   .events-link{display:inline-block;margin:0 0 16px;font-size:0.85rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);padding:8px 14px;border-radius:10px;}
   .events-link:hover{border-color:var(--accent2);}
@@ -316,8 +337,12 @@
     .manual-link,.customize-toggle{padding-top:12px;padding-bottom:0;}
     .swapbtn,.maplink{padding:10px 14px;}
     .manual-item-actions button{width:36px;height:36px;font-size:0.9rem;}
-    .stop-actions{gap:10px;}
+    .stop-actions{gap:18px;}
+    .stop-actions .swapbtn,.stop a.maplink{padding:12px 0;}
     .share-row .again{flex:1;min-width:150px;}
+    .timeline{padding-left:34px;}
+    .stop-marker{left:-34px;width:24px;height:24px;font-size:0.75rem;top:24px;}
+    .stop h3{font-size:1.2rem;}
     #mapview{height:260px;}
     .mood{padding:16px;}
   }
@@ -3661,6 +3686,11 @@ function render(){
   const rawPois = (lastPOIContext && lastPOIContext.pois) || [];
   const touches = stops.length ? buildOptionalTouches(stops, rawPois, center) : [];
 
+  // Premium itinerary redesign: a continuous rail with numbered markers
+  // instead of a stack of bordered cards (see the .timeline/.stop-marker CSS
+  // comment above for provenance) — everything inside each .stop is otherwise
+  // unchanged.
+  html += `<div class="timeline">`;
   stops.forEach((s,i)=>{
     if(i>0){
       html += `<div class="travel">🚶 <span>${s.walkFromPrev} ${escapeHtml(t('min_walk_to_next'))}</span></div>`;
@@ -3674,6 +3704,7 @@ function render(){
     const conf = stopConfidence(s.poi, currentPlan.dateStr, s.start);
     const reasonText = explanation ? explanation.stopReasons[i] : null;
     html += `<div class="stop" id="stop-card-${i}" onclick="if(!event.target.closest('a,button')) focusMapMarker(${i})">
+      <div class="stop-marker" aria-hidden="true">${i+1}</div>
       <div class="time">${fmtTime(s.start)} – ${fmtTime(s.end)} · ${timeLabel}</div>
       <h3>${escapeHtml(name)}</h3>
       <div class="cat">${escapeHtml(t('cat_'+s.poi.category))}</div>
@@ -3689,6 +3720,7 @@ function render(){
       </div>
     </div>`;
   });
+  html += `</div>`;
 
   // Map follows the timeline immediately — it supports the story, it doesn't interrupt it.
   html += `<div id="mapview"></div>`;
