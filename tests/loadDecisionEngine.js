@@ -101,6 +101,7 @@ function loadDecisionEngine(){
       insertMustIncludeStop,
       sanitizeSharedPlanStop, sanitizeSharedPlanStops, sanitizeSharedPlanWeather, sanitizeSharedPlanCenter,
       mapLink, fmtTime, fmtKm, catInSentence,
+      placeInstagram, sanitizeSharedPlanTags, deleteOwnedSharedPlans, queryOverpass,
     };`,
     context
   );

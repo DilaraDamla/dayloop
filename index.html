@@ -571,25 +571,19 @@
   <div id="popular-body"></div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js" integrity="sha384-Ufq88lVebSanA6Y271YEbcklp6Nb9pT26KQ/eBdyjEjvge1iB15DbPg9GhDXSPKV" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js" integrity="sha384-WCMvq+IYULWMFMeYO/fKLTgpCgLaOUxgQc1dFPdo6uk9tv7Cq3ZKwFEvTteutP1M" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js" integrity="sha384-9Ciszmem3lPYqTrIW4mg4FOU+ptKy/ZrJGnd/qHwS0nrWE5y8GHV9BNBl8uTDVX9" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/tr.js" integrity="sha384-Y7O43PM3w1lzpD9Tbq06VLD7WvMJZsaVsjXBZ4rAzAPqUdizcCJYmImbIXN6f2+r" crossorigin="anonymous"></script>
 <!--
-  Sprint 1: the three Firebase compat SDK scripts below deliberately do NOT
-  have an integrity= attribute. Every OTHER pinned CDN asset here (Leaflet,
-  Flatpickr) was independently cross-verified in this sprint — the exact
-  bytes served from the CDN URL index.html actually uses were hashed locally
-  AND matched against jsdelivr's own independently-computed hash API for the
-  same npm-published version, a genuine second source, not just re-hashing
-  the same download. No equivalent independent, version-matched artifact
-  exists to cross-check Google's gstatic firebasejs bundles against in this
-  environment, and inventing a hash without that verification would fail
-  closed (silently break sign-in for every visitor) the moment Google
-  changes anything about how that bundle is packaged. Documented rather than
-  guessed, per this sprint's explicit instruction not to invent SRI hashes.
+  The three Firebase compat SDK scripts above carry integrity= hashes. The
+  bytes served by gstatic for 12.16.0 were hashed locally and matched
+  byte-for-byte against the npm-published firebase@12.16.0 package's own
+  files (jsdelivr's hash API) — an independent second source. When bumping
+  the Firebase version, recompute all three hashes the same way, or sign-in
+  will fail closed.
 -->
 <script>
 const $ = id => document.getElementById(id);
@@ -1371,13 +1365,22 @@ function placeAddress(tags){
   const parts = [tags['addr:housenumber'], tags['addr:street'] || tags['addr:city']].filter(Boolean);
   return parts.length ? parts.join(' ') : null;
 }
+// The tag (from OSM, or from an untrusted shared-plan doc) is rendered as an
+// "Instagram →" link, so a full URL is only accepted when it really points at
+// instagram.com — otherwise any https phishing page could wear that label.
 function placeInstagram(tags){
   let handle = tags['contact:instagram'] || tags['instagram'];
-  if(!handle) return null;
+  if(typeof handle !== 'string') return null;
   handle = handle.trim();
   if(!handle) return null;
-  if(/^https?:\/\//i.test(handle)) return handle;
-  return `https://instagram.com/${handle.replace(/^@/,'')}`;
+  if(/^https?:\/\//i.test(handle)){
+    try{
+      const u = new URL(handle);
+      return /^(www\.)?instagram\.com$/i.test(u.hostname) ? u.href : null;
+    }catch(e){ return null; }
+  }
+  handle = handle.replace(/^@/,'');
+  return /^[A-Za-z0-9._]{1,30}$/.test(handle) ? `https://instagram.com/${handle}` : null;
 }
 
 // ---------- import a place shared from outside DayLoop (e.g. Instagram) ----------
@@ -2000,6 +2003,12 @@ async function queryOverpass(query, onProgress){
   // page when opened directly as a local file (origin "null"), which some Overpass
   // mirrors refuse to talk to. Not meant for production — see CONCEPT.md.
   let lastErr = result.lastErr;
+  // On the real site the mirrors accept our origin; routing through a third-party
+  // proxy there would hand it the user's location and let it inject place data.
+  if(typeof location !== 'undefined' && location.protocol !== 'file:'){
+    console.error('All Overpass attempts failed (two full passes):', lastErr);
+    throw new Error('Places lookup failed — map data sources are unreachable right now. Please try again in a minute.');
+  }
   try{
     onProgress?.('Trying a fallback route…');
     const getUrl = `${OVERPASS_ENDPOINTS[0]}?data=${encodeURIComponent(query)}`;
@@ -2600,13 +2609,23 @@ function insertMustIncludeStop(stops, poi, center){
 // sites) gets already-well-typed data, current and future. Every numeric
 // field is individually type/finite-checked with a safe zero default rather
 // than trusted because a key merely exists.
+// OSM tag values are always strings; a crafted doc could put objects/arrays
+// here that crash the opening-hours parser or other tag readers mid-render.
+function sanitizeSharedPlanTags(rawTags){
+  const tags = {};
+  if(!rawTags || typeof rawTags !== 'object' || Array.isArray(rawTags)) return tags;
+  for(const [k,v] of Object.entries(rawTags).slice(0,100)){
+    if(typeof v === 'string' && k.length <= 100) tags[k] = v.slice(0,500);
+  }
+  return tags;
+}
 function sanitizeSharedPlanStop(rawStop){
   const num = (v) => (typeof v === 'number' && isFinite(v)) ? v : 0;
   const rawPoi = (rawStop && typeof rawStop === 'object' && rawStop.poi && typeof rawStop.poi === 'object') ? rawStop.poi : {};
   const poi = {
     lat: num(rawPoi.lat), lon: num(rawPoi.lon),
     category: typeof rawPoi.category === 'string' ? rawPoi.category : 'place',
-    tags: (rawPoi.tags && typeof rawPoi.tags === 'object') ? rawPoi.tags : {},
+    tags: sanitizeSharedPlanTags(rawPoi.tags),
   };
   return {
     slotType: (rawStop && typeof rawStop.slotType === 'string') ? rawStop.slotType : null,
@@ -3118,6 +3137,29 @@ async function deleteAllUserData(db, uid){
   return { attempted:true, ok };
 }
 
+// Shared plans the user created live outside users/{uid}, carry their display
+// name, city, date and stops, and stay readable to anyone with the link — so
+// account deletion must remove them too (firestore.rules allows the owner to
+// list exactly their own via where('ownerId','==',uid), and to delete them).
+// Their own participant entry is removed first; other people's participant
+// docs are theirs to delete and can't be touched here.
+async function deleteOwnedSharedPlans(db, uid){
+  if(!db || !uid) return { attempted:false, ok:true };
+  try{
+    const snap = await db.collection('sharedPlans').where('ownerId','==',uid).get();
+    const results = await Promise.all(snap.docs.map(async d => {
+      try{
+        await d.ref.collection('participants').doc(uid).delete();
+        await d.ref.delete();
+        return true;
+      }catch(e){ return false; }
+    }));
+    return { attempted:true, ok: results.every(Boolean) };
+  }catch(e){
+    return { attempted:true, ok:false };
+  }
+}
+
 // ---------- shared/collaborative plans (invite-friends feature) ----------
 // A shared plan publishes the EXACT plan a signed-in user just generated
 // (not just the inputs — see buildShareURL further below, which only
@@ -3162,35 +3204,6 @@ function formatParticipantsSummary(participants, ownerUid){
     .slice()
     .sort((a,b) => (a.uid===ownerUid ? -1 : b.uid===ownerUid ? 1 : a.joinedAt-b.joinedAt))
     .map(p => p.displayName || null);
-}
-
-// ---------- search-and-invite-a-friend (extends shared plans) ----------
-// A searchable profile is the minimum needed to find a friend by name — see
-// firestore.rules' userProfiles/{uid} comment for exactly why it holds
-// nothing beyond a display name. displayNameLower exists purely because
-// Firestore has no case-insensitive query operator; buildNamePrefixRange
-// below is the actual prefix-range trick that makes a ">=/<=" query behave
-// like a "starts with" search.
-function buildUserProfileDoc(uid, displayName){
-  const name = displayName || '';
-  return { uid, displayName: name, displayNameLower: name.toLowerCase(), updatedAt: Date.now() };
-}
-// Firestore range trick: a query for displayNameLower in [start, end) with
-// end = prefix + the highest valid Unicode codepoint matches every string
-// that starts with prefix, and nothing that doesn't — this is the standard,
-// well-documented way to do prefix search in Firestore (no native LIKE/
-// full-text operator exists).
-function buildNamePrefixRange(prefix){
-  const lower = (prefix || '').toLowerCase();
-  return { start: lower, end: lower + '' };
-}
-// A pointer, not a membership grant — see the matching firestore.rules
-// comment. Writing this never adds anyone as a participant; the invitee
-// still joins themselves, exactly like anyone who joins via a forwarded
-// link (see checkPendingInvites/loadSharedPlanFromURL in the UI-wiring
-// section below).
-function buildInviteEntry(inviteeUid, inviterUid, inviterName){
-  return { uid: inviteeUid, invitedBy: inviterUid, invitedByName: inviterName || '', invitedAt: Date.now() };
 }
 
 // ---------- UI wiring ----------
@@ -3636,6 +3649,10 @@ async function createSharedPlan(){
 // own freshly-generated plan uses, so a joined friend sees an identical
 // itinerary, not a re-generated (and possibly different) one.
 async function loadSharedPlanFromURL(shareId){
+  if(typeof shareId !== 'string' || !/^[A-Za-z0-9]{1,40}$/.test(shareId)){
+    showError(t('shared_plan_not_found'));
+    return;
+  }
   if(!fbDb){
     showError(t('shared_plan_load_failed'));
     return;
@@ -3870,8 +3887,8 @@ function renderHistoryPanel(){
       <div class="hi-top"><span>${escapeHtml(entry.dateStr)}</span><span>${VIBE_EMOJI[entry.vibe]||'📍'}</span></div>
       <div class="hi-title">${escapeHtml(place)}</div>
       <div class="hi-actions">
-        <button onclick="loadHistoryEntry(${entry.id})">${escapeHtml(t('history_load'))}</button>
-        <button onclick="deleteHistoryEntry(${entry.id})">${escapeHtml(t('history_delete'))}</button>
+        <button onclick="loadHistoryEntry(${Number(entry.id)})">${escapeHtml(t('history_load'))}</button>
+        <button onclick="deleteHistoryEntry(${Number(entry.id)})">${escapeHtml(t('history_delete'))}</button>
       </div>
     </div>`;
   }).join('');
@@ -4087,6 +4104,8 @@ async function deleteAccountFlow(){
   try{
     const dataResult = await deleteAllUserData(fbDb, uid);
     if(dataResult.attempted && !dataResult.ok){ showToast(t('cloud_delete_failed')); return; }
+    const sharedResult = await deleteOwnedSharedPlans(fbDb, uid);
+    if(sharedResult.attempted && !sharedResult.ok){ showToast(t('cloud_delete_failed')); return; }
     await fbUser.delete();
     closeAuthPanel();
     showToast(t('delete_account_success_toast'));
