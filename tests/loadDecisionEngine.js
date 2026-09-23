@@ -100,7 +100,7 @@ function loadDecisionEngine(){
       extractPlaceCandidatesFromShare, extractInstagramUrlHints, humanizeSlug,
       insertMustIncludeStop,
       sanitizeSharedPlanStop, sanitizeSharedPlanStops, sanitizeSharedPlanWeather, sanitizeSharedPlanCenter,
-      mapLink, fmtTime,
+      mapLink, fmtTime, fmtKm, catInSentence,
     };`,
     context
   );

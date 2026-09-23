@@ -84,7 +84,7 @@ test('an indoor stop chosen under weather bias explains itself by the weather', 
   const profile = chillProfile({ indoorBias: true });
   const s = stop({ slotType: 'activity', p: poi('museum'), distFromPrev: 2, tierUsed: 'core' });
   const reason = eng.explainStop(s, profile, [], { indoorBias: true });
-  assert.equal(reason, eng.t('explain_weather_indoor', { category: eng.t('cat_museum') }));
+  assert.equal(reason, eng.t('explain_weather_indoor', { category: eng.catInSentence('museum') }));
 });
 
 // ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ test('a plain chill-vibe match explains itself in terms of a calm, unhurried pac
   // the default intent-match branch.
   const s = stop({ slotType: 'food', p: poi('restaurant'), distFromPrev: 5, tierUsed: 'core' });
   const reason = eng.explainStop(s, profile, [], { indoorBias: false });
-  assert.equal(reason, eng.t('explain_intent_match_chill', { category: eng.t('cat_restaurant') }));
+  assert.equal(reason, eng.t('explain_intent_match_chill', { category: eng.catInSentence('restaurant') }));
   assert.match(reason, /calm|unhurried/i);
 });
 
@@ -147,7 +147,7 @@ test('a budget-low pick explains itself via category fit, never an invented exac
   const profile = eng.buildDayIntentProfile({ vibe: 'budget', group: 'couple', budget: 1, weather: { indoorBias: false } });
   const s = stop({ slotType: 'activity', p: poi('park'), distFromPrev: 5, tierUsed: 'core' });
   const reason = eng.explainStop(s, profile, [], { indoorBias: false });
-  assert.equal(reason, eng.t('explain_budget_low', { category: eng.t('cat_park') }));
+  assert.equal(reason, eng.t('explain_budget_low', { category: eng.catInSentence('park') }));
   assert.doesNotMatch(reason, /\$|€|₺|cheapest|exact/i, 'must never assert a specific price this app has no data for');
 });
 

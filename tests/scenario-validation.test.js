@@ -150,7 +150,7 @@ test('every stop reason is consistent with its own tierUsed field', () => {
   for(const { envKey, scenarioKey, result } of RESULTS){
     result.stops.forEach((stop, i) => {
       const reason = result.explanation.stopReasons[i];
-      const categoryVars = { category: eng.t('cat_'+stop.poi.category) };
+      const categoryVars = { category: eng.catInSentence(stop.poi.category) };
       if(stop.tierUsed === 'crossSlotFallback'){
         assert.equal(reason, eng.t('explain_fallback', categoryVars), `${envKey}/${scenarioKey} stop ${i}: crossSlotFallback tier must explain itself as a fallback`);
       } else if(stop.tierUsed === 'lastResort'){

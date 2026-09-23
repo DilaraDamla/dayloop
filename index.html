@@ -469,7 +469,7 @@
   <!-- Events are optional inspiration, not the plan itself — kept below the
        itinerary+map so they never compete with the generated day for attention. -->
   <div class="card events-section-compact" id="events-section" style="display:none;">
-    <label data-i18n="upcoming_events_label">🌙 Nearby tonight</label>
+    <label data-i18n="upcoming_events_label">🌙 Nearby events</label>
     <input type="text" id="events-search" data-i18n-placeholder="events_search_placeholder" placeholder="Search events (artist, venue…)" style="margin-bottom:12px;">
     <div id="events-strip"></div>
   </div>
@@ -477,10 +477,10 @@
   <div id="plan-actions"></div>
 
   <footer>
-    Place data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors ·
-    Geocoding via <a href="https://nominatim.org" target="_blank" rel="noopener noreferrer">Nominatim</a> ·
-    Weather via <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> ·
-    Routing via <a href="https://routing.openstreetmap.de" target="_blank" rel="noopener noreferrer">OSRM</a><br>
+    <span data-i18n="footer_place_data">Place data ©</span> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> <span data-i18n="footer_contributors">contributors</span> ·
+    <span data-i18n="footer_geocoding">Geocoding via</span> <a href="https://nominatim.org" target="_blank" rel="noopener noreferrer">Nominatim</a> ·
+    <span data-i18n="footer_weather">Weather via</span> <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> ·
+    <span data-i18n="footer_routing">Routing via</span> <a href="https://routing.openstreetmap.de" target="_blank" rel="noopener noreferrer">OSRM</a><br>
     <span data-i18n="footer_note">Prototype — walking times are estimates, always double-check opening hours before you go.</span>
   </footer>
 </div>
@@ -644,10 +644,11 @@ const STRINGS = {
     travel_mode_label:"Getting around", travel_mode_foot:"🚶 On foot", travel_mode_car:"🚗 By car",
     travel_mode_foot_hint:"Stops stay close together, all walkable within the day.",
     travel_mode_car_hint:"Widens the search — spread-out places across the city can be worth the drive, not just what's nearby.",
-    drive_preview:"🚗 About {km} km ({min} min) of driving today.",
+    drive_preview:"🚗 About {km} km ({min} min) of driving in total.",
     summary_drive:"driving",
     swap_btn:"🔄 Suggest another",
-    share_btn:"🔗 Share this plan", share_copied:"Link copied to clipboard!",
+    share_btn:"🔗 Share this plan", share_copied:"Link copied to clipboard!", share_copy_prompt:"Copy this link:",
+    footer_place_data:"Place data ©", footer_contributors:"contributors", footer_geocoding:"Geocoding via", footer_weather:"Weather via", footer_routing:"Routing via",
     invite_friends_btn:"👥 Invite friends", invite_link_copied:"Invite link copied — send it to whoever's coming!",
     invite_signin_required:"Sign in to create a shared plan your friends can join.",
     invite_create_failed:"Couldn't create the shared plan. Please try again.",
@@ -671,7 +672,7 @@ const STRINGS = {
     wishlist_import_label:"Saw a place on Instagram? Paste the caption or link", wishlist_import_placeholder:"Paste the Instagram caption or post link…", wishlist_import_btn:"📸 Import from Instagram", wishlist_import_empty:"Paste something first.",
     again_btn:"Plan a different day",
     summary_stops:"stops", summary_walk:"walking",
-    walk_preview:"🚶 About {km} km ({min} min) of walking today.",
+    walk_preview:"🚶 About {km} km ({min} min) of walking in total.",
     footer_note:"Built from live public map, weather, and routing data.",
     open_maps:"Map & reviews →", open_instagram:"Instagram →", nearby_word:"nearby",
     hero_title:"❤️ Your Day",
@@ -684,31 +685,31 @@ const STRINGS = {
     summary_schedule_optimized:"Schedule optimized for minimal walking",
     summary_manual_order:"Order set the way you arranged it",
     // ---------- Explanation Layer templates (bounded, factual, no invented venue qualities) ----------
-    explain_must_include:"The place you shared and imported — built into today's plan as a real stop, not just used as a location.",
+    explain_must_include:"The place you shared and imported — built into your plan as a real stop, not just used as a location.",
     explain_fallback:"This {category} was included to complete the day when nothing closer to your original preference was nearby.",
     explain_last_resort:"This {category} was the closest available option once your usual preferences ran out nearby.",
-    explain_weather_indoor:"This {category} keeps things indoors for today's weather.",
+    explain_weather_indoor:"This {category} keeps things indoors given the weather forecast.",
     explain_variety:"This {category} was picked to keep the day varied rather than repeat an earlier stop.",
     explain_budget_low:"This {category} is a lower-cost pick that fits your budget preference.",
     explain_compact_route:"This {category} is close to your previous stop, keeping the route compact.",
     explain_intent_match_romantic:"This {category} fits the romantic pace you asked for.",
-    explain_intent_match_chill:"This {category} fits your calm, unhurried pace for today.",
+    explain_intent_match_chill:"This {category} fits the calm, unhurried pace you asked for.",
     explain_intent_match_adventurous:"This {category} matches your adventurous, active pace.",
     explain_intent_match_budget:"This {category} is a solid match for a budget-friendly day.",
     explain_intent_match_generic:"This {category} fits the day you're planning.",
-    explain_intent_match_creative:"This {category} fits your creative, artistic pace for today.",
+    explain_intent_match_creative:"This {category} fits the creative, artistic pace you asked for.",
     explain_discovery:"This {category} is a distinctive local find, not just the nearest convenient option.",
     explain_event:"This {category} is happening on your requested date and fits the vibe of the day.",
     plan_explanation_title:"Why this day",
-    planexplain_weather_indoor:"Indoor activities were favored today because of the weather forecast.",
-    planexplain_vibe_excluded:"{categories} were excluded because they don't fit the requested vibe.",
+    planexplain_weather_indoor:"Indoor activities were favored because of the weather forecast.",
+    planexplain_vibe_excluded:"Left out because they don't fit the vibe you picked: {categories}.",
     planexplain_compact_route:"Stops were kept close together to minimize walking.",
     planexplain_discovery:"At least one stop is a distinctive local venue rather than a generic default.",
     planexplain_schedule_shifted:"One stop's timing was adjusted because it opens later than the original schedule.",
-    planexplain_event_fit:"A real event matching today's date and vibe was included.",
-    summary_density_low:"Today's plan uses fewer, longer stops since nearby options were limited.",
-    summary_density_high:"Today's plan spans a fuller day with varied stops nearby.",
-    summary_density_medium:"Today's plan is paced to match what you asked for.",
+    planexplain_event_fit:"A real event matching your date and vibe was included.",
+    summary_density_low:"This plan uses fewer, longer stops since nearby options were limited.",
+    summary_density_high:"This plan spans a fuller day with varied stops nearby.",
+    summary_density_medium:"This plan is paced to match what you asked for.",
     tradeoff_fallback:"To complete the day, one stop is a bit outside your original preference.",
     tradeoff_last_resort:"Nearby options were limited, so one stop leans on a fallback pick rather than your top preference.",
     tradeoff_far_stop:"Nearby options were limited, so one stop is a little farther away than usual.",
@@ -721,10 +722,10 @@ const STRINGS = {
     oh_closed_note:"May be closed at your planned visit time — worth a quick check.",
     // ---------- Sprint 6: explicit open-now / opens-at / unverified hours state ----------
     badge_open_now:"🟢 Open at this time", badge_opens_at:"🟠 Opens at {time}",
-    badge_closed_today:"🔴 Closed for the rest of today", badge_unverified:"🟡 Today's hours could not be verified",
+    badge_closed_today:"🔴 Closed for the rest of the day", badge_unverified:"🟡 Hours for this day could not be verified",
     badge_open_now_title:"Based on the listed opening hours for this day and time.",
-    badge_opens_at_title:"Listed hours suggest this spot is closed right now but opens later today.",
-    badge_closed_today_title:"Listed hours suggest this spot won't reopen again today.",
+    badge_opens_at_title:"Listed hours suggest this spot is closed at the planned time but opens later that day.",
+    badge_closed_today_title:"Listed hours suggest this spot won't reopen later that day.",
     badge_unverified_title:"This place has no opening-hours data DayLoop could parse — verify before you go.",
     // ---------- accessibility (wheelchair) ----------
     badge_wheelchair_yes:"♿ Wheelchair accessible", badge_wheelchair_limited:"♿ Limited wheelchair access", badge_wheelchair_no:"🚫 Not wheelchair accessible",
@@ -735,7 +736,7 @@ const STRINGS = {
     wheelchair_only_hint:"Filters to places OpenStreetMap has confirmed as fully accessible — narrows results, especially in smaller towns where this is rarely tagged at all.",
     error_no_accessible_places:"No confirmed wheelchair-accessible places found nearby — OpenStreetMap may simply not have this tagged here yet. Try a bigger city, or turn the filter off to see everything nearby.",
     // ---------- Sprint 6: approximate daily cost estimate ----------
-    cost_estimate_title:"Estimated cost today",
+    cost_estimate_title:"Estimated cost",
     cost_estimate_approx_note:"Approximate — DayLoop has no live price data, this is a rough guide based on venue type and your budget level, not confirmed prices.",
     cost_food_label:"Food", cost_coffee_label:"Coffee", cost_activities_label:"Activities", cost_transport_label:"Transport",
     cost_transport_walking_note:"This plan is fully walkable — no transport cost.",
@@ -761,7 +762,7 @@ const STRINGS = {
     popular_title:"Nearby Picks", popular_empty:"Search a location first — picks will show up here once you do.",
     popular_places_note:"Great places around your destination.",
     open_maps_short:"View on map",
-    upcoming_events_label:"🌙 Nearby tonight", events_search_placeholder:"Search events (artist, venue…)",
+    upcoming_events_label:"🌙 Nearby events", events_search_placeholder:"Search events (artist, venue…)",
     events_loading:"Loading events…",
     events_none_found:"No live events found near this destination.", get_ticket:"Get ticket", event_free:"Free",
     event_distance_away:"{km} km away",
@@ -844,10 +845,11 @@ const STRINGS = {
     travel_mode_label:"Nasıl gezeceksin", travel_mode_foot:"🚶 Yürüyerek", travel_mode_car:"🚗 Araçla",
     travel_mode_foot_hint:"Duraklar birbirine yakın tutulur, gün boyu tamamen yürüyerek gezilebilir.",
     travel_mode_car_hint:"Aramayı genişletir — şehrin dağınık noktaları da artık gitmeye değer, sadece yakındakiler değil.",
-    drive_preview:"🚗 Bugün yaklaşık {km} km ({min} dk) araç yolculuğu var.",
+    drive_preview:"🚗 Toplamda yaklaşık {km} km ({min} dk) araç yolculuğu var.",
     summary_drive:"araçla",
     swap_btn:"🔄 Başka öner",
-    share_btn:"🔗 Planı paylaş", share_copied:"Bağlantı panoya kopyalandı!",
+    share_btn:"🔗 Planı paylaş", share_copied:"Bağlantı panoya kopyalandı!", share_copy_prompt:"Bu bağlantıyı kopyala:",
+    footer_place_data:"Mekân verisi ©", footer_contributors:"katkıcıları", footer_geocoding:"Adres arama:", footer_weather:"Hava durumu:", footer_routing:"Rota:",
     invite_friends_btn:"👥 Arkadaşlarını davet et", invite_link_copied:"Davet bağlantısı kopyalandı — gelecek olanlara gönder!",
     invite_signin_required:"Arkadaşlarının katılabileceği ortak bir plan oluşturmak için giriş yap.",
     invite_create_failed:"Ortak plan oluşturulamadı. Lütfen tekrar dene.",
@@ -871,7 +873,7 @@ const STRINGS = {
     wishlist_import_label:"Instagram'da bir yer mi gördün? Açıklamayı veya linki yapıştır", wishlist_import_placeholder:"Instagram açıklamasını veya gönderi linkini yapıştır…", wishlist_import_btn:"📸 Instagram'dan içe aktar", wishlist_import_empty:"Önce bir şey yapıştır.",
     again_btn:"Başka bir gün planla",
     summary_stops:"durak", summary_walk:"yürüyüş",
-    walk_preview:"🚶 Bugün yaklaşık {km} km ({min} dk) yürüyüş var.",
+    walk_preview:"🚶 Toplamda yaklaşık {km} km ({min} dk) yürüyüş var.",
     footer_note:"Canlı harita, hava durumu ve rota verileriyle oluşturuldu.",
     open_maps:"Harita ve yorumlar →", open_instagram:"Instagram →", nearby_word:"yakında",
     hero_title:"❤️ Senin Günün",
@@ -884,31 +886,31 @@ const STRINGS = {
     summary_schedule_optimized:"Program en az yürüyüşe göre optimize edildi",
     summary_manual_order:"Sıralama senin düzenlediğin gibi",
     // ---------- Açıklama Katmanı şablonları (sınırlı, olgusal, uydurma nitelik yok) ----------
-    explain_must_include:"Paylaşıp içe aktardığın mekân — sadece konum olarak değil, gerçek bir durak olarak bugünkü plana eklendi.",
-    explain_fallback:"Bu {category}, tercihinize en yakın seçenek bulunamadığı için günü tamamlamak amacıyla eklendi.",
-    explain_last_resort:"Bu {category}, yakında tercihlerinize uyan başka seçenek kalmadığında en yakın alternatifti.",
-    explain_weather_indoor:"Bu {category}, bugünkü hava durumuna uygun kapalı mekan bir seçenek.",
+    explain_must_include:"Paylaşıp içe aktardığın mekân — sadece konum olarak değil, gerçek bir durak olarak planına eklendi.",
+    explain_fallback:"Bu {category}, tercihine en yakın seçenek bulunamadığı için günü tamamlamak amacıyla eklendi.",
+    explain_last_resort:"Bu {category}, yakında tercihlerine uyan başka seçenek kalmadığında en yakın alternatifti.",
+    explain_weather_indoor:"Bu {category}, hava tahminine uygun kapalı mekan bir seçenek.",
     explain_variety:"Bu {category}, önceki bir durağı tekrar etmemek için çeşitlilik adına seçildi.",
-    explain_budget_low:"Bu {category}, bütçe tercihinize uygun daha ekonomik bir seçim.",
+    explain_budget_low:"Bu {category}, bütçe tercihine uygun daha ekonomik bir seçim.",
     explain_compact_route:"Bu {category}, önceki durağa yakın ve rotayı derli toplu tutuyor.",
     explain_intent_match_romantic:"Bu {category}, istediğin romantik tempoya uyuyor.",
-    explain_intent_match_chill:"Bu {category}, bugün için istediğin sakin, aceleci olmayan tempoya uyuyor.",
+    explain_intent_match_chill:"Bu {category}, istediğin sakin, aceleci olmayan tempoya uyuyor.",
     explain_intent_match_adventurous:"Bu {category}, maceracı, hareketli temponla eşleşiyor.",
     explain_intent_match_budget:"Bu {category}, bütçe dostu bir gün için sağlam bir seçim.",
     explain_intent_match_generic:"Bu {category}, planladığın güne uyuyor.",
-    explain_intent_match_creative:"Bu {category}, bugün için istediğin yaratıcı, sanatsal tempoya uyuyor.",
+    explain_intent_match_creative:"Bu {category}, istediğin yaratıcı, sanatsal tempoya uyuyor.",
     explain_discovery:"Bu {category}, sadece en yakın seçenek değil, kendine özgü yerel bir keşif.",
     explain_event:"Bu {category}, istediğin tarihte gerçekleşiyor ve günün moduna uyuyor.",
     plan_explanation_title:"Bu günün nedeni",
-    planexplain_weather_indoor:"Bugün hava durumu tahmini nedeniyle kapalı mekan aktiviteleri tercih edildi.",
-    planexplain_vibe_excluded:"{categories}, istenen moda uymadığı için hariç tutuldu.",
+    planexplain_weather_indoor:"Hava durumu tahmini nedeniyle kapalı mekan aktiviteleri tercih edildi.",
+    planexplain_vibe_excluded:"Seçtiğin modla uyuşmadığı için plana alınmadı: {categories}.",
     planexplain_compact_route:"Yürüyüşü en aza indirmek için duraklar birbirine yakın tutuldu.",
     planexplain_discovery:"En az bir durak, sıradan bir seçenek yerine kendine özgü yerel bir mekân.",
     planexplain_schedule_shifted:"Bir durağın saati, orijinal planlanandan daha geç açıldığı için ayarlandı.",
-    planexplain_event_fit:"Bugünün tarihine ve moduna uyan gerçek bir etkinlik dahil edildi.",
-    summary_density_low:"Yakında seçenek sınırlı olduğu için bugünkü plan daha az ve daha uzun duraklardan oluşuyor.",
-    summary_density_high:"Bugünkü plan, çevredeki çeşitli duraklarla dolu dolu bir gün sunuyor.",
-    summary_density_medium:"Bugünkü plan, istediğin tempoya göre ayarlandı.",
+    planexplain_event_fit:"Seçtiğin tarihe ve moda uyan gerçek bir etkinlik dahil edildi.",
+    summary_density_low:"Yakında seçenek sınırlı olduğu için bu plan daha az ve daha uzun duraklardan oluşuyor.",
+    summary_density_high:"Bu plan, çevredeki çeşitli duraklarla dolu dolu bir gün sunuyor.",
+    summary_density_medium:"Bu plan, istediğin tempoya göre ayarlandı.",
     tradeoff_fallback:"Günü tamamlamak için bir durak, orijinal tercihinin biraz dışında.",
     tradeoff_last_resort:"Yakında seçenek sınırlı olduğundan bir durak, en çok tercih ettiğin seçenek yerine bir yedek seçim.",
     tradeoff_far_stop:"Yakında seçenek sınırlı olduğundan bir durak biraz daha uzakta.",
@@ -921,10 +923,10 @@ const STRINGS = {
     oh_closed_note:"Planladığın saatte kapalı olabilir — kontrol etmekte fayda var.",
     // ---------- Sprint 6: açık/şu saatte açılıyor/doğrulanamadı durumları ----------
     badge_open_now:"🟢 Bu saatte açık", badge_opens_at:"🟠 Şu saatte açılıyor: {time}",
-    badge_closed_today:"🔴 Bugün için kapandı", badge_unverified:"🟡 Bugünkü saatler doğrulanamadı",
+    badge_closed_today:"🔴 Günün geri kalanında kapalı", badge_unverified:"🟡 Bu günün saatleri doğrulanamadı",
     badge_open_now_title:"Bu gün ve saat için belirtilen çalışma saatlerine göre.",
-    badge_opens_at_title:"Belirtilen saatlere göre şu anda kapalı ama bugün ilerleyen saatte açılıyor.",
-    badge_closed_today_title:"Belirtilen saatlere göre bugün tekrar açılmayacak gibi görünüyor.",
+    badge_opens_at_title:"Belirtilen saatlere göre planlanan saatte kapalı ama günün ilerleyen saatinde açılıyor.",
+    badge_closed_today_title:"Belirtilen saatlere göre günün geri kalanında tekrar açılmayacak gibi görünüyor.",
     badge_unverified_title:"Bu mekân için DayLoop'un okuyabildiği bir çalışma saati verisi yok — gitmeden önce kontrol et.",
     // ---------- erişilebilirlik (tekerlekli sandalye) ----------
     badge_wheelchair_yes:"♿ Tekerlekli sandalyeye uygun", badge_wheelchair_limited:"♿ Sınırlı erişilebilirlik", badge_wheelchair_no:"🚫 Tekerlekli sandalyeye uygun değil",
@@ -935,7 +937,7 @@ const STRINGS = {
     wheelchair_only_hint:"OpenStreetMap'te tam erişilebilir olarak onaylanmış mekanlarla sınırlar — özellikle küçük yerleşimlerde bu bilgi nadiren işaretlendiği için sonuçları daraltabilir.",
     error_no_accessible_places:"Yakında onaylı tekerlekli sandalye erişimine uygun mekân bulunamadı — OpenStreetMap'te bu bilgi henüz işaretlenmemiş olabilir. Daha büyük bir şehir dene, ya da her şeyi görmek için filtreyi kapat.",
     // ---------- Sprint 6: yaklaşık günlük maliyet tahmini ----------
-    cost_estimate_title:"Bugünün tahmini maliyeti",
+    cost_estimate_title:"Tahmini maliyet",
     cost_estimate_approx_note:"Yaklaşık bir tahmin — DayLoop'ta canlı fiyat verisi yok, bu rakamlar mekân türüne ve bütçe seviyene göre kabaca bir fikir verir, gerçek fiyat değildir.",
     cost_food_label:"Yemek", cost_coffee_label:"Kahve", cost_activities_label:"Aktiviteler", cost_transport_label:"Ulaşım",
     cost_transport_walking_note:"Bu plan tamamen yürüyerek yapılabiliyor — ulaşım masrafı yok.",
@@ -959,9 +961,9 @@ const STRINGS = {
     filter_events:"Etkinlikler", manual_events_note:"Bu konum için canlı etkinlik listesi henüz yok — bunun yerine hızlı bir arama açabilirsin.",
     events_link:"🎟️ Bilet al / etkinlikleri gör →",
     popular_title:"Yakındaki Öneriler", popular_empty:"Önce bir konum ara — öneriler burada görünecek.",
-    popular_places_note:"Gideceğiniz yere yakın güzel seçenekler.",
+    popular_places_note:"Gideceğin yere yakın güzel seçenekler.",
     open_maps_short:"Haritada gör",
-    upcoming_events_label:"🌙 Bu akşam yakında", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
+    upcoming_events_label:"🌙 Yakındaki etkinlikler", events_search_placeholder:"Etkinlik ara (sanatçı, mekan…)",
     events_loading:"Etkinlikler yükleniyor…",
     events_none_found:"Bu varış noktasının yakınında canlı etkinlik bulunamadı.", get_ticket:"Bilet al", event_free:"Ücretsiz",
     event_distance_away:"{km} km uzaklıkta",
@@ -1343,7 +1345,17 @@ function walkMinutes(km){ return estimateTravelMinutes(km, 'foot'); }
 // original stats strip is untouched and still shows the full detail.
 function formatWalkPreview(totalWalkKm, totalWalkMin, mode){
   const key = mode === 'car' ? 'drive_preview' : 'walk_preview';
-  return t(key, { km: totalWalkKm.toFixed(1), min: Math.round(totalWalkMin) });
+  return t(key, { km: fmtKm(totalWalkKm), min: Math.round(totalWalkMin) });
+}
+// Turkish uses a decimal comma (0,8 km), English a decimal point (0.8 km).
+function fmtKm(km){
+  const txt = km.toFixed(1);
+  return LANG === 'tr' ? txt.replace('.', ',') : txt;
+}
+// Category labels are title-case for badges ("Kafe"); mid-sentence they read as common nouns ("Bu kafe").
+function catInSentence(category){
+  const label = t('cat_'+category);
+  return LANG === 'tr' ? label.toLocaleLowerCase('tr') : label.toLowerCase();
 }
 function fmtTime(mins){
   const h = Math.floor(mins/60)%24, m = mins%60;
@@ -2532,6 +2544,16 @@ function buildItinerary(pois, center, opts){
     }
   }
 
+  // A slot that found no place leaves its time unused and the day ends hours early.
+  // Stretch the remaining stops to cover the window, capped at the same 1.4x a
+  // sparse area already gets (with ~5% slack left for real walking times).
+  if(stops.length && stops.length < slotTypes.length){
+    const baseMin = stops.reduce((sum,s) => sum + (SLOT_DURATION_MIN[s.slotType] || 60), 0);
+    const availMin = (endMin - startMin) * 0.95 - 15 * (stops.length - 1);
+    const fill = Math.min(1.4, availMin / baseMin);
+    if(fill > structure.stretchFactor) structure.stretchFactor = Math.round(fill * 100) / 100;
+  }
+
   improveSequence(stops, center, mode);
   const dayTrace = evaluateDayPlan(stops, center, mode);
   dayTrace.densityTier = structure.densityTier;
@@ -2830,7 +2852,7 @@ function explainStop(stop, profile, priorStops, weather){
   // line repeated verbatim — confirmed as a real, recurring defect via the
   // Sprint 3 scenario fixtures (e.g. three stops in one real itinerary all
   // reading exactly "Fits your calm, unhurried pace for today.").
-  const vars = { category: t('cat_'+category) };
+  const vars = { category: catInSentence(category) };
 
   // The one unconditional case: this exact place was explicitly requested
   // (shared/imported by the user, see insertMustIncludeStop), not picked by
@@ -2890,8 +2912,11 @@ function explainSummary(dayTrace){
 function explainPlan(profile, dayTrace, stops, weather){
   const reasons = [];
   if(weather && weather.indoorBias) reasons.push(t('planexplain_weather_indoor'));
-  if(profile && profile.excluded && profile.excluded.size){
-    reasons.push(t('planexplain_vibe_excluded', { categories: Array.from(profile.excluded).map(c=>t('cat_'+c)).join(', ') }));
+  // Universally excluded categories (e.g. ferry terminals) were never a vibe choice, so they aren't listed here.
+  const vibeExcluded = profile && profile.excluded ? Array.from(profile.excluded).filter(c => !UNIVERSALLY_EXCLUDED_CATEGORIES.includes(c)) : [];
+  if(vibeExcluded.length){
+    const list = vibeExcluded.map(catInSentence).join(', ');
+    reasons.push(t('planexplain_vibe_excluded', { categories: list }));
   }
   if(dayTrace && stops.length > 1){
     const avgLegKm = dayTrace.totalDistanceKm / stops.length;
@@ -3042,9 +3067,9 @@ function buildOptionalTouches(stops, pois, center){
 }
 
 function formatOptionalTouch(touch){
-  const distance = touch.distanceKm < 1 ? `${Math.round(touch.distanceKm*1000)} m` : `${touch.distanceKm.toFixed(1)} km`;
+  const distance = touch.distanceKm < 1 ? `${Math.round(touch.distanceKm*1000)} m` : `${fmtKm(touch.distanceKm)} km`;
   if(touch.kind==='ferry') return t('optional_ferry', { name: touch.name, distance });
-  return t('optional_alternative', { category: t('cat_'+touch.category), name: touch.name, distance });
+  return t('optional_alternative', { category: catInSentence(touch.category), name: touch.name, distance });
 }
 
 // ---------- Sprint 1 security hardening: honest cloud deletion ----------
@@ -3530,13 +3555,7 @@ function buildShareURL(){
   return `${location.origin}${location.pathname}?${p.toString()}`;
 }
 async function onShareClick(){
-  const url = buildShareURL();
-  try{
-    await navigator.clipboard.writeText(url);
-    showToast(t('share_copied'));
-  }catch(e){
-    prompt('Copy this link:', url);
-  }
+  await copyOrPromptLink(buildShareURL(), 'share_copied');
 }
 
 // ---------- shared/collaborative plans: UI orchestration ----------
@@ -3553,12 +3572,22 @@ function currentDisplayName(){
   if(!fbUser) return '';
   return fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : '');
 }
+// On phones (and the installed app) the OS share sheet is the natural way to send
+// a link — WhatsApp, Instagram DMs, etc. Desktop keeps the copy-to-clipboard flow.
 async function copyOrPromptLink(url, copiedMsgKey){
+  if(navigator.share && window.matchMedia && window.matchMedia('(pointer: coarse)').matches){
+    try{
+      await navigator.share({ title: 'DayLoop', url });
+      return;
+    }catch(e){
+      if(e && e.name === 'AbortError') return; // user closed the share sheet
+    }
+  }
   try{
     await navigator.clipboard.writeText(url);
     showToast(t(copiedMsgKey));
   }catch(e){
-    prompt('Copy this link:', url);
+    prompt(t('share_copy_prompt'), url);
   }
 }
 
@@ -4421,7 +4450,7 @@ function render(){
   const routeTitle = routeLive ? t('route_live_title') : t('route_estimated_title');
   html += `<div class="summary">
     <span>${stops.length} ${escapeHtml(t('summary_stops'))}</span>
-    <span>${travelEmoji} ${totalWalkKm.toFixed(1)} km ${escapeHtml(t(travelMode==='car' ? 'summary_drive' : 'summary_walk'))}</span>
+    <span>${travelEmoji} ${fmtKm(totalWalkKm)} km ${escapeHtml(t(travelMode==='car' ? 'summary_drive' : 'summary_walk'))}</span>
     <span>⏱️ ${Math.round(totalWalkMin)} ${escapeHtml(t('min_unit'))}</span>
     <span class="route-badge ${routeLive?'live':''}" tabindex="0" title="${escapeHtml(routeTitle)}" aria-label="${escapeHtml(routeTitle)}">${escapeHtml(routeLive ? t('route_live_badge') : t('route_estimated_badge'))}</span>
   </div>`;
