@@ -720,7 +720,7 @@ const STRINGS = {
     oh_unknown_note:"Opening hours could not be confirmed.",
     oh_closed_note:"May be closed at your planned visit time — worth a quick check.",
     // ---------- Sprint 6: explicit open-now / opens-at / unverified hours state ----------
-    badge_open_now:"🟢 Open now", badge_opens_at:"🟠 Opens at {time}",
+    badge_open_now:"🟢 Open at this time", badge_opens_at:"🟠 Opens at {time}",
     badge_closed_today:"🔴 Closed for the rest of today", badge_unverified:"🟡 Today's hours could not be verified",
     badge_open_now_title:"Based on the listed opening hours for this day and time.",
     badge_opens_at_title:"Listed hours suggest this spot is closed right now but opens later today.",
@@ -920,7 +920,7 @@ const STRINGS = {
     oh_unknown_note:"Çalışma saatleri doğrulanamadı.",
     oh_closed_note:"Planladığın saatte kapalı olabilir — kontrol etmekte fayda var.",
     // ---------- Sprint 6: açık/şu saatte açılıyor/doğrulanamadı durumları ----------
-    badge_open_now:"🟢 Şu an açık", badge_opens_at:"🟠 Şu saatte açılıyor: {time}",
+    badge_open_now:"🟢 Bu saatte açık", badge_opens_at:"🟠 Şu saatte açılıyor: {time}",
     badge_closed_today:"🔴 Bugün için kapandı", badge_unverified:"🟡 Bugünkü saatler doğrulanamadı",
     badge_open_now_title:"Bu gün ve saat için belirtilen çalışma saatlerine göre.",
     badge_opens_at_title:"Belirtilen saatlere göre şu anda kapalı ama bugün ilerleyen saatte açılıyor.",
@@ -1347,6 +1347,8 @@ function formatWalkPreview(totalWalkKm, totalWalkMin, mode){
 }
 function fmtTime(mins){
   const h = Math.floor(mins/60)%24, m = mins%60;
+  // Turkish users read 24h clock (the time pickers above already show 14:00).
+  if(LANG === 'tr') return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   const ampm = h>=12 ? 'PM':'AM'; let h12 = h%12; if(h12===0) h12=12;
   return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
 }
@@ -2860,7 +2862,8 @@ function explainStop(stop, profile, priorStops, weather){
 
   if(profile.budgetPriority === 'low' && FREE_LEANING_CATEGORIES.has(category)) return t('explain_budget_low', vars);
 
-  if(stop.distFromPrev != null && stop.distFromPrev < 0.6) return t('explain_compact_route', vars);
+  // The first stop has no previous stop — its distFromPrev is measured from the search center.
+  if(priorStops.length > 0 && stop.distFromPrev != null && stop.distFromPrev < 0.6) return t('explain_compact_route', vars);
 
   const intentKey = {
     romantic: 'explain_intent_match_romantic', chill: 'explain_intent_match_chill',
