@@ -9,6 +9,39 @@ Work through these roughly in order — A/B/C are the highest priority.
 
 ---
 
+## 0. (2026-09-23 review) Deploy the updated `firestore.rules` — highest priority
+
+The previous rules used `allow read` on `sharedPlans/{shareId}`. In Firestore
+`read` includes `list`, so **any signed-in user could query the whole
+collection** and see every shared plan's owner name, city, date and stops
+without ever having the link. The updated rules allow `get` (open one plan by
+its id) for signed-in users, and `list` only for your own plans. Until they
+are deployed, the live database still has the old behaviour.
+
+The same update also:
+- removes the `userProfiles` and `invites` rules (the friend-search/invite
+  feature was never built in `index.html`, so those paths were open for no
+  reason — any signed-in user could read every profile), and
+- denies updates to a shared plan after it is published (the app never
+  updates one; this keeps `ownerId` immutable).
+
+Deploy exactly as in section C below (`firebase deploy --only firestore:rules`).
+The rules were not run in the emulator during this review (it needs Java 11+;
+this machine has Java 8) — the CLI validates them before applying anything.
+
+After deploying, check in the app: open a shared plan link while signed in
+(should load), and delete a test account that owns a shared plan (the plan's
+link should then say it no longer works).
+
+Known, accepted gaps:
+- When an account is deleted, that user's *participant* entries inside other
+  people's shared plans remain (they can't be found without a
+  collection-group query, which these rules deliberately don't allow).
+- A participant's display name is whatever their client sends; it is not
+  checked against their Firebase Auth profile.
+
+---
+
 ## A. Verify/rotate the historically exposed Ticketmaster Consumer Key
 
 A real Ticketmaster Consumer Key was committed in cleartext to this

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>DayLoop — Çevrimdışı</title>
+<!-- Served by sw.js only when a page navigation fails because the device is
+     offline. DayLoop has no offline mode (every plan needs live data), so this
+     page just explains that instead of showing the browser's own error page. -->
+<style>
+  :root{ --bg:#0f1115; --panel:#171a21; --border:#2a2f3a; --text:#eef0f4; --muted:#9aa3b2; --accent:#ff6b6b; --accent-contrast:#1a0d0d; --radius:14px;
+    --font-display:"Iowan Old Style","Palatino Linotype","URW Palladio L",Palatino,Georgia,serif; }
+  *{box-sizing:border-box;}
+  body{margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    padding:max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));}
+  .card{max-width:420px; width:100%; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:28px 22px; text-align:center;}
+  h1{font-family:var(--font-display); font-weight:600; font-size:1.9rem; margin:0 0 14px;}
+  p{color:var(--muted); line-height:1.5; margin:0 0 10px;}
+  button{margin-top:14px; width:100%; min-height:48px; border:0; border-radius:var(--radius); background:var(--accent); color:var(--accent-contrast); font-size:1rem; font-weight:600; cursor:pointer;}
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>DayLoop</h1>
+  <p>İnternet bağlantısı yok. Planlar canlı harita, hava durumu ve rota verisiyle oluşturulduğu için DayLoop'un bağlantıya ihtiyacı var.</p>
+  <p lang="en">You're offline. DayLoop builds plans from live map, weather and routing data, so it needs a connection.</p>
+  <button type="button" onclick="location.reload()">Tekrar dene · Try again</button>
+</main>
+</body>
+</html>
